@@ -1,6 +1,6 @@
 [project]
 name = "chemfacts"
-version = "0.2.0"
+version = "0.3.0"
 description = "Provenance-first chemical fact verification: query PubChem, cross-check sources, never fabricate. Export auditable, citable fact cards."
 readme = "README.md"
 authors = [
@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.11"
 license = "MIT"
 dependencies = [
+    "mcp>=2.3.0",
     "requests>=2.34.2",
     "typer>=0.27.3",
 ]
@@ -30,6 +31,7 @@ Issues = "https://github.com/CL4Y68/chemfacts/issues"
 
 [project.scripts]
 chemfacts = "chemfacts.cli:main"
+chemfacts-mcp = "chemfacts.mcp_server:run_main"
 
 [build-system]
 requires = ["uv_build>=0.12.10,<0.13.0"]

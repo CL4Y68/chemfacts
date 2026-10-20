@@ -198,6 +198,46 @@ verdict: MISMATCH
 detail : claim 110.0 not confirmed; closest sourced value: 99.13 g/mol (PubChem PUG REST)
 ```
 
+## Use from any agent: MCP server
+
+chemfacts ships an [MCP](https://modelcontextprotocol.io) server, so *any*
+MCP-capable agent (Claude Code, Codex, Zed, Hermes, agent harnesses, ...) can
+verify chemical facts by provenance. Six tools are exposed:
+`chemfacts_resolve`, `chemfacts_lookup`, `chemfacts_crosscheck`,
+`chemfacts_verify`, `chemfacts_card`, `chemfacts_alias`.
+
+### Option 1 — local stdio (no service to run)
+
+```bash
+pip install chemfacts
+```
+
+Register the `chemfacts-mcp` command with your agent (one entry each; exact
+syntax varies by agent/version, the command is always `chemfacts-mcp`
+which defaults to stdio):
+
+| Agent | Example registration |
+|---|---|
+| Claude Code | `claude mcp add chemfacts -- chemfacts-mcp` (or a `mcpServers` entry in `.mcp.json`) |
+| Codex | an MCP-server entry for `chemfacts-mcp` in Codex's config |
+| Hermes | register `chemfacts-mcp` as a local MCP server (joins the academic MCP group) |
+
+### Option 2 — shared service (Docker + streamable-HTTP, one deployment for many clients)
+
+```bash
+docker build -t chemfacts-mcp .
+docker run -d -p 8000:8000 -v chemfacts-data:/data chemfacts-mcp
+```
+
+Every agent then points at the same URL `http://<host>:8000/mcp`
+(e.g. `claude mcp add --transport http chemfacts http://host:8000/mcp`).
+The `/data` volume **is the shared retrieval database**:
+`facts.db` (SQLite cache, provenance kept on reload) +
+`aliases.json` (abbreviation pins) — edit the file, all clients see it.
+
+> If the host machine runs a global HTTP proxy, set `NO_PROXY=127.0.0.1,localhost`
+> so agent↔server traffic on localhost is not routed through it.
+
 ## Library
 
 ```python
@@ -236,7 +276,7 @@ cross-checking (NIST WebBook, GESTIS/ECHA) is on the roadmap.
 - [ ] NIST WebBook as a second source (phase-transition data)
 - [ ] GESTIS / ECHA / vendor SDS for authoritative flash points
 - [ ] `batch` mode: verify a whole reagent list for a recipe in one pass
-- [ ] MCP server so LLM agents must source their chemistry claims
+- [x] MCP server: stdio + streamable-http transports, Docker image, six tools — register in any MCP client
 
 ## Development
 

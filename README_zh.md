@@ -177,6 +177,43 @@ verdict: MISMATCH
 detail : claim 110.0 not confirmed; closest sourced value: 99.13 g/mol (PubChem PUG REST)
 ```
 
+## 让任意 agent 使用：MCP 服务
+
+chemfacts 内置 [MCP](https://modelcontextprotocol.io) 服务，**任何支持 MCP 的
+agent（Claude Code、Codex、Zed、Hermes、各种 agent harness…）都能按溯源方式查证
+化学事实**。暴露 6 个工具：`chemfacts_resolve`、`chemfacts_lookup`、
+`chemfacts_crosscheck`、`chemfacts_verify`、`chemfacts_card`、`chemfacts_alias`。
+
+### 方式一 · 本地 stdio（不起服务）
+
+```bash
+pip install chemfacts
+```
+
+把 `chemfacts-mcp` 命令注册给你的 agent（每家一行；具体语法随 agent/版本略有
+差异，命令永远是默认 stdio 的 `chemfacts-mcp`）：
+
+| Agent | 注册示例 |
+|---|---|
+| Claude Code | `claude mcp add chemfacts -- chemfacts-mcp`（或 `.mcp.json` 里加 `mcpServers` 条目） |
+| Codex | 在 Codex 配置里加一条 `chemfacts-mcp` 的 MCP server 条目 |
+| Hermes | 把 `chemfacts-mcp` 注册为本地 MCP server（并入你的学术 MCP 组） |
+
+### 方式二 · 共享服务（Docker + streamable-HTTP，一次部署、多方使用）
+
+```bash
+docker build -t chemfacts-mcp .
+docker run -d -p 8000:8000 -v chemfacts-data:/data chemfacts-mcp
+```
+
+所有 agent 都指向同一个 URL `http://<host>:8000/mcp`
+（如 `claude mcp add --transport http chemfacts http://host:8000/mcp`）。
+`/data` 卷**就是那份共享检索库**：`facts.db`（SQLite 缓存，重载保留溯源）+
+`aliases.json`（缩写钉位）——改文件，所有客户端立即可见。
+
+> 宿主机若跑全局 HTTP 代理，请设 `NO_PROXY=127.0.0.1,localhost`，
+> 避免本地 agent↔server 流量被代理劫持。
+
 ## 库（Python API）
 
 ```python
@@ -213,7 +250,7 @@ EPA、CAMEO、NTP 等）。第二来源交叉核对（NIST WebBook、GESTIS/ECHA
 - [ ] NIST WebBook 作为第二来源（相变数据）
 - [ ] GESTIS / ECHA / 厂商 SDS 的权威闪点
 - [ ] `batch` 模式：一次核完配方里的全部试剂
-- [ ] MCP server：让 LLM agent 的化学声称必须走溯源
+- [x] MCP server：stdio + streamable-http 双传输、Docker 镜像、6 个工具——任意 MCP 客户端可注册
 
 ## 开发
 

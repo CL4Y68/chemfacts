@@ -215,6 +215,20 @@ def show() -> None:
         typer.echo(f"{table:10} {n}")
 
 
+@app.command()
+def mcp(
+    transport: str = typer.Option("stdio", help="stdio | streamable-http | sse"),
+    host: str = typer.Option("127.0.0.1"),
+    port: int = typer.Option(8000),
+    path: str = typer.Option("/mcp", help="streamable-http mount path"),
+) -> None:
+    """Run the MCP server so any MCP client (Claude Code, Codex, ...) can use chemfacts."""
+    from .mcp_server import main as run_mcp_server
+
+    typer.echo(f"serving MCP over {transport} (host={host}, port={port}, path={path})")
+    run_mcp_server(transport, host, port, path)
+
+
 def main() -> None:
     """Entry point (installed as `chemfacts`)."""
     app()

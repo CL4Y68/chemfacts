@@ -57,7 +57,9 @@ class FactCache:
             _DEFAULT_DIR.mkdir(parents=True, exist_ok=True)
             db_path = str(_DEFAULT_DIR / "facts.db")
         self.db_path = db_path
-        self.conn = sqlite3.connect(db_path)
+        # check_same_thread=False: the HTTP MCP transport may serve requests
+        # from worker threads; access is serialized by SQLite's own locking.
+        self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self.conn.executescript(_SCHEMA)
 
     def close(self) -> None:
