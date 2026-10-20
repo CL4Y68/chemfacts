@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 
+from .aliases import AliasRegistry
 from .cache import FactCache
 from .model import CompoundIdentity, FactCard, PropertyValue, VerifyResult
 from .pubchem import PubChemClient, PubChemError
@@ -62,20 +63,34 @@ class ChemFacts:
         client: PubChemClient | None = None,
         cache: FactCache | None = None,
         ttl_days: int = 30,
+        aliases: AliasRegistry | None = None,
     ):
         self.client = client or PubChemClient()
         self.cache = cache or FactCache()
         self.ttl_days = ttl_days
+        self.aliases = aliases or AliasRegistry()
 
     # -- identity -----------------------------------------------------------
 
     def resolve(self, identifier: str, use_cache: bool = True) -> CompoundIdentity:
-        """Resolve an identifier to a CompoundIdentity (cached with TTL)."""
+        """Resolve an identifier to a CompoundIdentity (cached with TTL).
+
+        Registered aliases (the abbreviation registry) are resolved first:
+        "DMPA" -> pinned CAS -> compound identity, so ambiguous abbreviations
+        never guess. The returned identity keeps the original input string
+        (the alias) in `.identifier` for the audit trail.
+        """
+        pinned = self.aliases.pin(identifier)
         if use_cache:
-            cached = self.cache.get_identity_by_identifier(identifier)
+            cached = (
+                self.cache.get_identity_by_identifier(pinned)
+                or self.cache.get_identity_by_identifier(identifier)
+            )
             if cached and self.cache.is_fresh(cached.accessed_at, self.ttl_days):
+                cached.identifier = identifier
                 return cached
-        ident = self.client.identity(identifier)
+        ident = self.client.identity(pinned)
+        ident.identifier = identifier  # keep the original input (alias) visible
         if ident.cid:
             self.cache.save_identity(ident)
         return ident
@@ -242,6 +257,13 @@ class ChemFacts:
         ident = self.resolve(identifier)
         props = properties or DEFAULT_CARD_PROPERTIES
         card = FactCard(identity=ident)
+        entry = self.aliases.get(identifier)
+        if entry is not None:
+            card.aliases.append(entry.alias)
+            note = f"abbreviation pinned via registry: {entry.alias} -> {entry.identifier}"
+            if entry.note:
+                note += f" ({entry.note})"
+            card.notes.append(note)
         statuses = []
         for slug in props:
             values, status = self.crosscheck(identifier, slug)
@@ -376,14 +398,19 @@ def card_to_markdown(card: FactCard, obsidian: bool = False) -> str:
     i = card.identity
     lines: list[str] = []
     if obsidian:
+        frontmatter = [
+            "---",
+            f'name: "{i.name or i.identifier}"',
+            f"cas: {i.cas or 'unknown'}",
+            f"cid: {i.cid or 'unknown'}",
+            f"status: {card.status}",
+            f"accessed: {i.accessed_at[:10]}",
+        ]
+        if card.aliases:
+            frontmatter.append(f"aliases: {json.dumps(sorted(card.aliases), ensure_ascii=False)}")
         lines.extend(
-            [
-                "---",
-                f'name: "{i.name or i.identifier}"',
-                f"cas: {i.cas or 'unknown'}",
-                f"cid: {i.cid or 'unknown'}",
-                f"status: {card.status}",
-                f"accessed: {i.accessed_at[:10]}",
+            frontmatter
+            + [
                 "---",
                 "",
                 f"# {i.name or i.identifier}",
@@ -425,6 +452,9 @@ def card_to_markdown(card: FactCard, obsidian: bool = False) -> str:
 
     lines.append(f"# {i.name or i.identifier} ({i.formula or 'n/a'})")
     lines.append("")
+    if card.aliases:
+        lines.append(f"- Aliases (registry-pinned): {', '.join(sorted(card.aliases))}")
+        lines.append("")
     lines.append(f"- IUPAC: {i.iupac_name or 'n/a'}")
     mw_text = f"{i.molecular_weight} g/mol" if i.molecular_weight is not None else "n/a"
     lines.append(f"- Formula: `{i.formula or 'n/a'}` | MW: {mw_text}")
@@ -449,6 +479,7 @@ def card_to_json(card: FactCard) -> str:
     payload = {
         "identity": i.__dict__,
         "status": card.status,
+        "aliases": card.aliases,
         "notes": card.notes,
         "accessed_at": card.accessed_at,
         "properties": {

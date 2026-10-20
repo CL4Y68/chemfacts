@@ -14,6 +14,7 @@ from pathlib import Path
 import typer
 
 from . import core, model, pubchem
+from .aliases import AliasRegistry
 
 app = typer.Typer(
     name="chemfacts",
@@ -23,6 +24,8 @@ app = typer.Typer(
 )
 cache_app = typer.Typer(help="Manage the local fact cache.")
 app.add_typer(cache_app, name="cache")
+alias_app = typer.Typer(help="Manage the abbreviation -> compound registry.")
+app.add_typer(alias_app, name="alias")
 
 
 def _facts() -> core.ChemFacts:
@@ -38,6 +41,10 @@ def resolve(identifier: str = typer.Argument(..., help="name, CAS, SMILES, InChI
     except pubchem.PubChemError as e:
         typer.echo(f"UNRESOLVED: {e}")
         raise typer.Exit(1) from e
+    entry = f.aliases.get(identifier)
+    if entry is not None:
+        typer.echo(f"pinned via alias: {entry.alias} -> {entry.identifier}"
+                   + (f"  # {entry.note}" if entry.note else ""))
     typer.echo(f"identity        : {ident.name or ident.title or identifier}")
     typer.echo(f"CID             : {ident.cid}")
     typer.echo(f"CAS             : {ident.cas or '(not found)'}")
@@ -141,6 +148,55 @@ def crosscheck(
     for v in values:
         typer.echo(f"{v.value:60.60} | {v.source_name} (ref #{v.reference_number})")
     raise typer.Exit(0 if status != "conflict" else 2)
+
+
+def _registry() -> AliasRegistry:
+    return AliasRegistry()
+
+
+@alias_app.command("add")
+def alias_add(
+    alias: str = typer.Argument(..., help="abbreviation, e.g. DMPA"),
+    identifier: str = typer.Argument(
+        ..., help="pinned CAS / CID / IUPAC / SMILES (CAS preferred)"
+    ),
+    note: str = typer.Option(
+        "", "--note", help="disambiguation note: which compound, and which NOT"
+    ),
+) -> None:
+    """Pin an ambiguous abbreviation to one compound (registry, JSON file)."""
+    entry = _registry().add(alias, identifier, note)
+    typer.echo(f"pinned {entry.alias} -> {entry.identifier} ({entry.added})")
+
+
+@alias_app.command("remove")
+def alias_remove(alias: str = typer.Argument(..., help="abbreviation to remove")) -> None:
+    ok = _registry().remove(alias)
+    typer.echo(f"removed {alias.upper()}" if ok else f"{alias.upper()} not in registry")
+    raise typer.Exit(0 if ok else 1)
+
+
+@alias_app.command("list")
+def alias_list() -> None:
+    entries = _registry().list()
+    if not entries:
+        typer.echo("(registry empty)")
+        return
+    for e in entries:
+        note = f"  # {e.note}" if e.note else ""
+        typer.echo(f"{e.alias:10} -> {e.identifier}{note}")
+
+
+@alias_app.command("show")
+def alias_show(alias: str = typer.Argument(..., help="abbreviation to inspect")) -> None:
+    e = _registry().get(alias)
+    if e is None:
+        typer.echo(f"{alias.upper()} not in registry")
+        raise typer.Exit(1)
+    typer.echo(f"alias     : {e.alias}")
+    typer.echo(f"pinned to : {e.identifier}")
+    typer.echo(f"note      : {e.note or '(none)'}")
+    typer.echo(f"added     : {e.added or '(unknown)'}")
 
 
 @cache_app.command()

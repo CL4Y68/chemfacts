@@ -1,0 +1,22 @@
+{
+  "DMPA": {
+    "identifier": "4767-03-7",
+    "note": "dimethylolpropionic acid, anionic WPU component; NOT 1,4-dimethylpiperazine / TMEDA",
+    "added": "2026-10-20"
+  },
+  "H12MDI": {
+    "identifier": "5124-30-1",
+    "note": "hydrogenated MDI (4,4'-dicyclohexylmethane diisocyanate); NOT 1,12-diisocyanatododecane (13879-35-1)",
+    "added": "2026-10-20"
+  },
+  "BA": {
+    "identifier": "141-32-2",
+    "note": "butyl acrylate (C7H12O2, MW 128.17); abbreviation pinned to avoid confusion with IBOA (isobornyl acrylate, 5888-33-5)",
+    "added": "2026-10-20"
+  },
+  "PDA": {
+    "identifier": "109-76-2",
+    "note": "1,3-propanediamine; PDA elsewhere means paracetamol",
+    "added": "2026-10-20"
+  }
+}

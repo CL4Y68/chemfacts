@@ -11,11 +11,12 @@ Query PubChem, cross-check sources, never fabricate.
     card = f.build_card("NMP")          # -> FactCard, render with core.card_to_markdown()
 """
 
+from .aliases import AliasEntry, AliasRegistry
 from .core import ChemFacts, card_to_json, card_to_markdown
 from .model import CompoundIdentity, FactCard, PropertyValue, VerifyResult
 from .pubchem import PubChemClient, PubChemError
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "ChemFacts",
@@ -25,6 +26,8 @@ __all__ = [
     "VerifyResult",
     "PubChemClient",
     "PubChemError",
+    "AliasEntry",
+    "AliasRegistry",
     "card_to_json",
     "card_to_markdown",
     "__version__",

@@ -2,48 +2,161 @@
 
 **Provenance-first chemical fact verification.**
 
-Chemical property values (molecular weight, flash point, melting/boiling point, …) are
-the classic place where both humans and LLMs quietly get things wrong *confidently* —
-"a literature value", a mis-copied digit, a number remembered from the wrong compound.
-`chemfacts` exists to make that failure mode impossible: **every number it reports is
-sourced, dated, and cross-checked; if a value cannot be sourced, it says so instead of
-inventing one.**
+Every number chemfacts reports is *sourced, dated, and cross-checked*; if a value
+cannot be sourced, it says so instead of inventing one. Chemical property values
+(molecular weight, flash point, melting/boiling point, …) are the classic place where
+both humans and LLMs quietly get things wrong *confidently* — a mis-copied digit, a
+value remembered from the wrong compound, "a literature value". chemfacts exists to
+make that failure mode impossible.
+
+[English](README.md) | [中文文档](README_zh.md)
+
+## A real catch
 
 ```
-chemfacts verify H12MDI mw --claim "262.35"
+$ chemfacts verify "1,12-diisocyanatododecane" mw --claim "262.35"
 verdict: MISMATCH
 detail : claim 262.35 not confirmed; closest sourced value: 252.35 g/mol (PubChem PUG REST)
 ```
 
-That above is a *real* catch: 1,12-diisocyanatododecane (H12MDI, C14H24N2O2) is
-**252.35 g/mol**, not 262.35. The tool tells you.
+Now pin the ambiguous abbreviation to the compound you actually use:
 
-## What it does
+```
+$ chemfacts alias add H12MDI 5124-30-1 --note "hydrogenated MDI, not 1,12-diisocyanatododecane"
+$ chemfacts verify H12MDI mw --claim "262.35"
+verdict: CONFIRMED
+```
+
+The *same* number is wrong for one compound and right for the other. chemfacts only
+knows the difference because the abbreviation was pinned. That pin is a two-line JSON
+entry, not a memory.
+
+## How it works
+
+```mermaid
+flowchart TD
+    A["input: name / CAS / CID / SMILES / abbreviation"] --> B{"abbreviation<br/>in alias registry?"}
+    B -- yes --> C["pin to unique identifier<br/>(CAS preferred)"]
+    B -- no --> D["classify identifier"]
+    C --> D
+    D --> E["PubChem PUG REST<br/>identity: IUPAC, CAS, formula, MW, SMILES, InChIKey"]
+    D --> F["PubChem PUG View<br/>sourced values: flash point, bp, mp, density, ..."]
+    E --> G["SQLite fact cache<br/>(TTL + full provenance)"]
+    F --> G
+    G --> H["cross-check: unit-normalise, drop<br/>qualified / sub-atmospheric values"]
+    H --> I{"spread vs. per-property<br/>conflict floor?"}
+    I -- "no values" --> J["status: unverified"]
+    I -- "spread > floor" --> K["status: conflict<br/>(unless closed-cup vs open-cup split)"]
+    I -- "within floor" --> L["status: verified"]
+    J --> M["auditable fact card<br/>(Markdown / Obsidian frontmatter / JSON)"]
+    K --> M
+    L --> M
+```
+
+Two design rules hold everywhere:
+
+1. **No fabrication.** Absence of data is reported as absence
+   ("no sourced value found for: Boiling Point"), never filled in.
+2. **Provenance on every value** — source name (HSDB, ILO ICSC, EPA, CAMEO, …),
+   PubChem reference number, access date, and `experimental` vs `computed` kind.
+
+## Abbreviation disambiguation
+
+One abbreviation can mean several compounds (DMPA is dimethylolpropionic acid *or*
+dimethylpiperazine; H12MDI is hydrogenated MDI *or* 1,12-diisocyanatododecane; BA is
+butyl acrylate). The registry resolves that once, for every subsequent lookup:
+
+```mermaid
+flowchart LR
+    A["DMPA"] -->|alias registry| B["CAS 4767-03-7<br/>(unique key)"]
+    B -->|PubChem resolve| C["identity + structure:<br/>IUPAC, formula C5H10O4,<br/>SMILES, InChIKey, MW"]
+    B -->|PUG View| D["sourced property values<br/>(flash point, density, ...)"]
+    C --> E["fact card<br/>name + structure + values + provenance"]
+    D --> E
+```
+
+What is pinned and why: a registry entry stores only the **small, stable, unambiguous
+part** — the abbreviation and its pinned CAS plus a note recording *why* this
+compound was chosen (and which ones were not). Structure, name, and InChIKey are
+*derived* from the CAS at resolution time, so they can never drift out of sync with
+the values. The entry format:
+
+```json
+{
+  "DMPA": {
+    "identifier": "4767-03-7",
+    "note": "dimethylolpropionic acid, anionic WPU component; NOT 1,4-dimethylpiperazine / TMEDA",
+    "added": "2026-10-20"
+  }
+}
+```
+
+```bash
+$ chemfacts alias add DMPA 4767-03-7 --note "dimethylolpropionic acid, NOT dimethylpiperazine"
+pinned DMPA -> 4767-03-7 (2026-10-20)
+$ chemfacts alias list
+DMPA       -> 4767-03-7  # dimethylolpropionic acid, NOT dimethylpiperazine
+$ chemfacts alias show DMPA
+$ chemfacts alias remove DMPA
+```
+
+The file is plain JSON (`~/.cache/chemfacts/aliases.json` by default; override with
+`CHEMFACTS_ALIASES`), so you can keep it next to your fact-card vault and commit it
+to version control. See [aliases.example.json](aliases.example.json).
+
+## Status logic
+
+```mermaid
+flowchart TD
+    A["sourced values for one property"] --> B["keep comparable values:<br/>drop qualified strings ('greater than', 'approx.'),<br/>drop sub-atmospheric pressures ('158 °C at 10 mmHg'),<br/>normalise °F → °C"]
+    B --> C{"≥ 2 values?"}
+    C -- no --> D["verified (single source, no peer to contradict)"]
+    C -- yes --> E{"spread > conflict floor?"}
+    E -- no --> D
+    E -- yes --> F{"closed-cup AND open-cup<br/>values both present?"}
+    F -- yes --> D2["verified (condition difference, not conflict)"]
+    F -- no --> G["CONFLICT — flag it, show every value + source"]
+```
+
+Per-property floors keep normal source-to-source variation from being flagged:
+melting point ±3 °C, boiling point ±2 °C, flash point ±1.5 °C, autoignition ±20 °C,
+density ±0.01 g/cm³; everything else uses a 10 % relative threshold.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    CLI["cli.py (typer)<br/>resolve · lookup · verify · crosscheck · card · cache · alias"] --> CORE
+    subgraph CORE["core.py — ChemFacts facade"]
+        R["resolve(): alias pin → PubChem identity → cache"]
+        L["lookup(): PUG View values with provenance"]
+        X["crosscheck(): comparable-value filter + conflict floors"]
+        V["verify(): claim vs. all sourced values"]
+        CD["build_card(): identity + properties + status"]
+    end
+    CORE --> P["pubchem.py<br/>PUG REST + PUG View client<br/>(throttled, retried, 4xx → PubChemError)"]
+    CORE --> C["cache.py<br/>SQLite: identity / value / ref tables<br/>TTL, provenance kept on reload"]
+    CORE --> A2["aliases.py<br/>JSON registry: abbreviation → CAS + note"]
+    P --> PC[("PubChem API")]
+    C --> DB[("~/.cache/chemfacts/facts.db")]
+    A2 --> J[("~/.cache/chemfacts/aliases.json")]
+```
+
+## Commands
 
 | Command | What |
 |---|---|
-| `chemfacts resolve <id>` | Resolve name / CAS / SMILES / InChI / CID to identity: IUPAC, CAS, formula, MW, SMILES, InChIKey |
-| `chemfacts lookup <id> <property>` | Every *sourced* value of a property (flash-point, boiling-point, …), each tagged with source, reference #, kind (experimental/computed) and access date |
-| `chemfacts card <id>` | An auditable fact card (Markdown with YAML frontmatter for Obsidian, or JSON), ready to drop into a lab notebook or manuscript |
-| `chemfacts verify <id> <property> --claim <value>` | The point of the project: hold a claimed value against all sourced values → `confirmed` / `mismatch` (with the closest value + its source) / `not_found` |
+| `chemfacts resolve <id>` | Resolve a name / CAS / SMILES / InChI / CID (or a pinned abbreviation) to identity: IUPAC, CAS, formula, MW, SMILES, InChIKey |
+| `chemfacts lookup <id> <property>` | Every *sourced* value of a property, each tagged with source, reference #, kind, access date |
+| `chemfacts card <id> [--format md\|obsidian\|json] [--out file]` | An auditable fact card, ready for a lab notebook, manuscript, or Obsidian vault |
+| `chemfacts verify <id> <property> --claim <value>` | Hold a claimed value against all sourced values → `confirmed` / `mismatch` (closest value + its source) / `not_found` |
 | `chemfacts crosscheck <id> <property>` | Compare sourced values; flag real conflicts, tolerate closed-cup/open-cup differences |
-| `chemfacts cache …` | Manage the local SQLite fact cache (TTL + full provenance) |
+| `chemfacts alias add\|list\|show\|remove` | Manage the abbreviation → compound registry |
+| `chemfacts cache clear\|show` | Manage the local SQLite fact cache |
 
-Rules enforced by design:
-
-- **No fabrication.** Absence of data is reported as absence ("no sourced value found").
-- **Provenance on every value** — source name (HSDB, ILO ICSC, EPA, CAMEO, …), PubChem
-  reference number, access date, and whether it is *experimental* or *computed*.
-- **Computed vs. measured** are labelled, so you never cite a predicted logP as an
-  experimental value.
-- **Conflicts are flagged, not averaged away.** Closed-cup 40 °C vs open-cup 66 °C is
-  a condition difference; 155 °C vs 200 °C is a conflict.
-
-## Sources
-
-v0.1 uses **PubChem** (PUG REST for identity, PUG View for experimental property values
-aggregated from HSDB, ILO ICSC, EPA, CAMEO, NTP, and more). Second-source cross-checking
-(NIST WebBook, GESTIS) is on the roadmap.
+Property slugs: `flash-point`, `boiling-point`, `melting-point`, `density`,
+`solubility`, `vapor-pressure`, `autoignition-point`, `explosive-limits`,
+`surface-tension`, `viscosity`, `mw`, `formula`.
 
 ## Install
 
@@ -53,11 +166,13 @@ pip install chemfacts
 uv tool install chemfacts
 ```
 
-## CLI examples
+Requires Python ≥ 3.11.
+
+## Examples
 
 ```bash
 # identity
-$ chemfacts resolve "NMP"
+$ chemfacts resolve NMP
 identity        : N-Methyl-2-pyrrolidone
 CID             : 13387
 CAS             : 872-50-4
@@ -86,28 +201,38 @@ detail : claim 110.0 not confirmed; closest sourced value: 99.13 g/mol (PubChem 
 ## Library
 
 ```python
-from chemfacts import ChemFacts
+from chemfacts import ChemFacts, card_to_markdown
 
 f = ChemFacts()
-ident = f.resolve("IPDI")
-vals = f.lookup("IPDI", "flash-point")
-res = f.verify("IPDI", "mw", "222.28")   # -> VerifyResult(verdict="confirmed", ...)
-card = f.build_card("IPDI")
-from chemfacts import card_to_markdown
+ident = f.resolve("IPDI")                       # -> CompoundIdentity (CID, CAS, formula, MW, ...)
+vals = f.lookup("IPDI", "flash-point")          # -> [PropertyValue, ...] each with source + date
+res = f.verify("IPDI", "mw", "222.28")          # -> VerifyResult(verdict="confirmed", ...)
+card = f.build_card("IPDI")                     # -> FactCard
 print(card_to_markdown(card, obsidian=True))
 ```
 
 ## Caching & provenance
 
-All fetched facts land in a local SQLite database
-(`~/.cache/chemfacts/facts.db`, override with `CHEMFACTS_CACHE_DIR`),
-each row carrying its source and access date. Cache entries age out (default 30 days,
-`ChemFacts(ttl_days=…)`), after which values are re-fetched — the provenance is never
-lost, only refreshed.
+All fetched facts land in a local SQLite database (`~/.cache/chemfacts/facts.db`,
+override with `CHEMFACTS_CACHE_DIR`); each row keeps its source and access date.
+Entries age out (default 30 days, `ChemFacts(ttl_days=…)`), after which values are
+re-fetched — the provenance is never lost, only refreshed.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `CHEMFACTS_CACHE_DIR` | `~/.cache/chemfacts` | fact cache DB location |
+| `CHEMFACTS_ALIASES` | `<cache dir>/aliases.json` | abbreviation registry file |
+
+## Sources
+
+v0.2 uses **PubChem** (PUG REST for identity, PUG View for experimental property
+values aggregated from HSDB, ILO ICSC, EPA, CAMEO, NTP, …). Second-source
+cross-checking (NIST WebBook, GESTIS/ECHA) is on the roadmap.
 
 ## Roadmap
 
-- [x] PubChem identity + experimental properties, card/verify/crosscheck, SQLite cache
+- [x] PubChem identity + experimental properties, card / verify / crosscheck, SQLite cache
+- [x] Abbreviation registry: pin ambiguous names to one compound (JSON, user-editable)
 - [ ] NIST WebBook as a second source (phase-transition data)
 - [ ] GESTIS / ECHA / vendor SDS for authoritative flash points
 - [ ] `batch` mode: verify a whole reagent list for a recipe in one pass

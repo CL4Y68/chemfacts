@@ -16,6 +16,8 @@ def fake_cli(monkeypatch, tmp_path):
     from chemfacts.cache import FactCache
     from chemfacts.core import ChemFacts
 
+    monkeypatch.setenv("CHEMFACTS_ALIASES", str(tmp_path / "aliases.json"))
+
     def _facts_stub():
         return ChemFacts(client=FakePubChem(), cache=FactCache(str(tmp_path / "c.db")))
 

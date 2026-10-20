@@ -62,7 +62,8 @@ class FakePubChem:
 
 
 @pytest.fixture()
-def facts(tmp_path):
+def facts(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHEMFACTS_ALIASES", str(tmp_path / "aliases.json"))
     fake = FakePubChem()
     cache = FactCache(str(tmp_path / "facts.db"))
     yield ChemFacts(client=fake, cache=cache)
