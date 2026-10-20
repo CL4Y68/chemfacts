@@ -8,6 +8,7 @@ Only two kinds of endpoints are used:
 from __future__ import annotations
 
 import re
+import time
 from typing import Any
 
 import requests
@@ -30,19 +31,51 @@ class PubChemError(RuntimeError):
 
 
 class PubChemClient:
-    def __init__(self, timeout: float = 30.0, session: requests.Session | None = None):
+    def __init__(
+        self,
+        timeout: float = 30.0,
+        session: requests.Session | None = None,
+        min_interval: float = 0.25,
+    ):
         self.timeout = timeout
+        self.min_interval = min_interval
+        self._last_call = 0.0
         self.session = session or requests.Session()
         self.session.headers["User-Agent"] = "chemfacts/0.1 (+https://github.com/CL4Y68/chemfacts)"
 
     # -- transport ----------------------------------------------------------
 
-    def _get_json(self, url: str, params: dict | None = None) -> Any:
-        r = self.session.get(url, params=params, timeout=self.timeout)
-        if r.status_code == 404:
-            raise PubChemError(f"not found: {url}")
-        r.raise_for_status()
-        return r.json()
+    def _get_json(self, url: str, params: dict | None = None, retries: int = 3) -> Any:
+        last_err: Exception | None = None
+        for attempt in range(retries):
+            self._throttle()
+            try:
+                r = self.session.get(url, params=params, timeout=self.timeout)
+            except requests.RequestException as e:
+                last_err = PubChemError(f"request failed: {url}: {e}")
+                if attempt + 1 < retries:
+                    time.sleep(1.5 * (attempt + 1))
+                continue
+            if r.status_code in (404, 429, 500, 502, 503, 504):
+                # 404 from PUG REST is also how PubChem signals throttling for
+                # name lookups; back off and retry before giving up.
+                last_err = PubChemError(f"http {r.status_code}: {url}")
+                if attempt + 1 < retries:
+                    time.sleep(1.5 * (attempt + 1))
+                continue
+            if r.status_code >= 400:
+                # non-retriable 4xx/5xx (e.g. 400 PUGREST.BadRequest): the
+                # identifier itself is bad for this endpoint kind — surface
+                # immediately so the caller can fall back to another kind.
+                raise PubChemError(f"http {r.status_code}: {url}")
+            return r.json()
+        raise last_err
+
+    def _throttle(self) -> None:
+        gap = time.monotonic() - self._last_call
+        if gap < self.min_interval:
+            time.sleep(self.min_interval - gap)
+        self._last_call = time.monotonic()
 
     # -- identity -----------------------------------------------------------
 
@@ -66,15 +99,29 @@ class PubChemClient:
     def identity(self, identifier: str) -> CompoundIdentity:
         kind, quoted = self._classify(identifier)
         if kind == "cid":
-            url = f"{_PUG_REST}/cid/{quoted}/property/{_IDENTITY_PROPS}/JSON"
+            urls = [(f"{_PUG_REST}/cid/{quoted}/property/{_IDENTITY_PROPS}/JSON", 3)]
         elif kind == "smiles":
-            url = f"{_PUG_REST}/smiles/{quoted}/property/{_IDENTITY_PROPS}/JSON"
+            # compact strings like "N-methylpyrrolidone" can be names, not SMILES;
+            # try the SMILES endpoint first, fall back to the name endpoint
+            urls = [
+                (f"{_PUG_REST}/smiles/{quoted}/property/{_IDENTITY_PROPS}/JSON", 1),
+                (f"{_PUG_REST}/name/{quoted}/property/{_IDENTITY_PROPS}/JSON", 3),
+            ]
         elif kind == "inchi":
-            url = f"{_PUG_REST}/inchi/{quoted}/property/{_IDENTITY_PROPS}/JSON"
+            urls = [(f"{_PUG_REST}/inchi/{quoted}/property/{_IDENTITY_PROPS}/JSON", 3)]
         else:  # cas and name both go through the 'name' endpoint
-            url = f"{_PUG_REST}/name/{quoted}/property/{_IDENTITY_PROPS}/JSON"
+            urls = [(f"{_PUG_REST}/name/{quoted}/property/{_IDENTITY_PROPS}/JSON", 3)]
 
-        data = self._get_json(url)
+        data = None
+        last_err: Exception | None = None
+        for url, retries in urls:
+            try:
+                data = self._get_json(url, retries=retries)
+                break
+            except PubChemError as e:
+                last_err = e
+        if data is None:
+            raise last_err
         p = data["PropertyTable"]["Properties"][0]
 
         cid = p.get("CID")

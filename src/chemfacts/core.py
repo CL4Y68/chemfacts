@@ -8,6 +8,7 @@ fabricating plausible values.
 from __future__ import annotations
 
 import json
+import re
 
 from .cache import FactCache
 from .model import CompoundIdentity, FactCard, PropertyValue, VerifyResult
@@ -140,15 +141,16 @@ class ChemFacts:
             return values, "unverified"
         heading = _heading(property_slug)
         numeric = [
-            _to_celsius(v.value, heading)
+            _comparable(v.value, heading)
             for v in values
-            if _to_celsius(v.value, heading) is not None
+            if _comparable(v.value, heading) is not None
         ]
         if len(numeric) >= 2:
             spread = max(numeric) - min(numeric)
             scale = max(abs(min(numeric)), abs(max(numeric)), 1.0)
             # same property, meaningfully different numbers -> flag conflict
-            if spread > max(2.0, 0.10 * scale):
+            floor = _CONFLICT_FLOORS.get(heading, 2.0)
+            if spread > max(floor, 0.10 * scale):
                 # distinguish closed-cup vs open-cup style condition differences
                 text = " ".join(v.value.lower() for v in values)
                 cup_closed = "closed cup" in text or "c.c." in text or "c.c" in text
@@ -261,6 +263,48 @@ def _first_number(s: str) -> float | None:
 
 
 _TEMP_SLUGS = {"Flash Point", "Boiling Point", "Melting Point", "Autoignition Point"}
+
+# absolute spread below which sources are considered in agreement
+# (below these, differences are normal source/purity variation, not a conflict)
+_CONFLICT_FLOORS = {
+    "Melting Point": 3.0,
+    "Boiling Point": 2.0,
+    "Flash Point": 1.5,
+    "Autoignition Point": 20.0,
+    "Density": 0.05,
+}
+
+# values carrying these qualifiers are ranges / estimates, not comparable point values
+_QUALIFIERS = (
+    "greater than",
+    "less than",
+    "above",
+    "below",
+    "approximately",
+    "approx.",
+    "estimated",
+    "calculated",
+    "computed",
+    "predicted",
+    "varies",
+)
+
+
+def _comparable(value_str: str, heading: str) -> float | None:
+    """A value usable for cross-source numeric comparison, else None.
+
+    Drops: qualified values ("greater than 200", "approximately -60"),
+    computed values, and pressure-conditional values that are not
+    atmospheric (e.g. "121 °C at 9 mm Hg" vs "213 °C" at 760 mmHg).
+    """
+    low = value_str.lower()
+    for q in _QUALIFIERS:
+        if q in low:
+            return None
+    in_pressure = re.search(r"\d+(?:\.\d+)?\s*(?:mm\s*hg|torr|kpa)", low)
+    if in_pressure and "760" not in low and "atm" not in low:
+        return None
+    return _to_celsius(value_str, heading)
 
 
 def _to_celsius(value_str: str, heading: str) -> float | None:
