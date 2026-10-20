@@ -1,0 +1,399 @@
+"""High-level API: resolve -> lookup -> crosscheck -> verify -> card.
+
+The single rule this module enforces: **a fact that cannot be sourced is not
+reported.** Functions return explicit `not_found` results instead of
+fabricating plausible values.
+"""
+
+from __future__ import annotations
+
+import json
+
+from .cache import FactCache
+from .model import CompoundIdentity, FactCard, PropertyValue, VerifyResult
+from .pubchem import PubChemClient, PubChemError
+
+# CLI slugs -> PUG View headings
+PROPERTY_ALIASES = {
+    "flash-point": "Flash Point",
+    "flash": "Flash Point",
+    "boiling-point": "Boiling Point",
+    "boiling": "Boiling Point",
+    "bp": "Boiling Point",
+    "melting-point": "Melting Point",
+    "melting": "Melting Point",
+    "mp": "Melting Point",
+    "density": "Density",
+    "solubility": "Solubility",
+    "vapor-pressure": "Vapor Pressure",
+    "autoignition-point": "Autoignition Point",
+    "explosive-limits": "Explosive Limits",
+    "surface-tension": "Surface Tension",
+    "viscosity": "Viscosity",
+    "molecular-weight": "MolecularWeight",
+    "mw": "MolecularWeight",
+    "formula": "MolecularFormula",
+}
+
+# properties that live in PUG REST identity, not in PUG View headings
+_IDENTITY_SOURCES = {
+    "MolecularWeight": ("molecular_weight", "PubChem PUG REST (computed from formula)"),
+    "MolecularFormula": ("formula", "PubChem PUG REST"),
+}
+
+DEFAULT_CARD_PROPERTIES = [
+    "Flash Point",
+    "Boiling Point",
+    "Melting Point",
+    "Density",
+]
+
+
+def _heading(slug_or_heading: str) -> str:
+    return PROPERTY_ALIASES.get(slug_or_heading.strip().lower(), slug_or_heading.strip())
+
+
+class ChemFacts:
+    """Facade over PubChemClient + FactCache."""
+
+    def __init__(
+        self,
+        client: PubChemClient | None = None,
+        cache: FactCache | None = None,
+        ttl_days: int = 30,
+    ):
+        self.client = client or PubChemClient()
+        self.cache = cache or FactCache()
+        self.ttl_days = ttl_days
+
+    # -- identity -----------------------------------------------------------
+
+    def resolve(self, identifier: str, use_cache: bool = True) -> CompoundIdentity:
+        """Resolve an identifier to a CompoundIdentity (cached with TTL)."""
+        if use_cache:
+            cached = self.cache.get_identity_by_identifier(identifier)
+            if cached and self.cache.is_fresh(cached.accessed_at, self.ttl_days):
+                return cached
+        ident = self.client.identity(identifier)
+        if ident.cid:
+            self.cache.save_identity(ident)
+        return ident
+
+    # -- properties ---------------------------------------------------------
+
+    def lookup(
+        self, identifier: str, property_slug: str, use_cache: bool = True
+    ) -> list[PropertyValue]:
+        """All published values for one property, with provenance."""
+        heading = _heading(property_slug)
+        ident = self.resolve(identifier)
+        if not ident.cid:
+            return []
+        if heading in _IDENTITY_SOURCES:
+            attr, source = _IDENTITY_SOURCES[heading]
+            raw = getattr(ident, attr)
+            if raw is None:
+                return []
+            value = f"{raw} g/mol" if attr == "molecular_weight" else str(raw)
+            return [
+                PropertyValue(
+                    property_name=heading,
+                    value=value,
+                    reference_number=0,
+                    source_name=source,
+                    kind="computed" if attr == "molecular_weight" else "registry",
+                    accessed_at=ident.accessed_at,
+                    url=f"https://pubchem.ncbi.nlm.nih.gov/compound/{ident.cid}",
+                )
+            ]
+        if use_cache:
+            cached = self.cache.get_values(ident.cid, heading)
+            if cached and all(self.cache.is_fresh(v.accessed_at, self.ttl_days) for v in cached):
+                # keep provenance names fresh from cache when possible
+                refs = self.cache.get_refs(ident.cid)
+                for v in cached:
+                    if not v.source_name:
+                        v.source_name = refs.get(
+                            v.reference_number, f"reference #{v.reference_number}"
+                        )
+                return cached
+        values = self.client.property_values(ident.cid, heading)
+        if values:
+            self.cache.save_values(ident.cid, values)
+            # refresh reference map
+            try:
+                data = self.client._get_json(  # noqa: SLF001 - same module family
+                    f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{ident.cid}/JSON"
+                )
+                refs = self.client._reference_map(ident.cid, data)  # noqa: SLF001
+                self.cache.save_refs(ident.cid, refs)
+            except PubChemError:
+                pass
+        return values
+
+    # -- cross-check --------------------------------------------------------
+
+    def crosscheck(self, identifier: str, property_slug: str) -> tuple[list[PropertyValue], str]:
+        """Return (values, status) where status in {verified, conflict, unverified}."""
+        values = self.lookup(identifier, property_slug)
+        if not values:
+            return values, "unverified"
+        heading = _heading(property_slug)
+        numeric = [
+            _to_celsius(v.value, heading)
+            for v in values
+            if _to_celsius(v.value, heading) is not None
+        ]
+        if len(numeric) >= 2:
+            spread = max(numeric) - min(numeric)
+            scale = max(abs(min(numeric)), abs(max(numeric)), 1.0)
+            # same property, meaningfully different numbers -> flag conflict
+            if spread > max(2.0, 0.10 * scale):
+                # distinguish closed-cup vs open-cup style condition differences
+                text = " ".join(v.value.lower() for v in values)
+                cup_closed = "closed cup" in text or "c.c." in text or "c.c" in text
+                cup_open = "open cup" in text or "o.c." in text or "o.c" in text
+                if cup_closed and cup_open:
+                    return values, "verified"
+                return values, "conflict"
+        return values, "verified"
+
+    # -- verify a claim -----------------------------------------------------
+
+    def verify(
+        self,
+        identifier: str,
+        property_slug: str,
+        claimed_value: str,
+        tolerance: float = 0.02,
+    ) -> VerifyResult:
+        """Check a claimed value against every sourced value we can find."""
+        heading = _heading(property_slug)
+        values = self.lookup(identifier, property_slug)
+        claimed = _first_number(claimed_value)
+        if not values or claimed is None:
+            return VerifyResult(
+                claimed_property=heading,
+                claimed_value=claimed_value,
+                found=bool(values),
+                matches=[],
+                closest=None,
+                verdict="not_found",
+                detail="no sourced value found for this property - claim stays unverified",
+            )
+        scored = []
+        for v in values:
+            n = v.numeric()
+            if n is None:
+                continue
+            scored.append((abs(n - claimed) / max(abs(claimed), 1e-9), v))
+        if not scored:
+            return VerifyResult(
+                claimed_property=heading,
+                claimed_value=claimed_value,
+                found=True,
+                matches=values,
+                closest=None,
+                verdict="not_found",
+                detail="values exist but none are numeric",
+            )
+        scored.sort(key=lambda x: x[0])
+        rel_diff, closest = scored[0]
+        matches = [
+            v for v in values
+            if (
+                v.numeric() is not None
+                and abs(v.numeric() - claimed) / max(abs(claimed), 1e-9) <= tolerance
+            )
+        ]
+        if matches:
+            verdict = "confirmed"
+            detail = f"{len(matches)} sourced value(s) agree within {tolerance:.0%}"
+        else:
+            verdict = "mismatch"
+            detail = (
+                f"claim {claimed_value} not confirmed; closest sourced value: "
+                f"{closest.value} ({closest.source_name})"
+            )
+        return VerifyResult(
+            claimed_property=heading,
+            claimed_value=claimed_value,
+            found=True,
+            matches=matches,
+            closest=closest,
+            verdict=verdict,
+            detail=detail,
+        )
+
+    # -- card ---------------------------------------------------------------
+
+    def build_card(
+        self, identifier: str, properties: list[str] | None = None
+    ) -> FactCard:
+        """Assemble a FactCard for one compound: identity + requested properties."""
+        ident = self.resolve(identifier)
+        props = properties or DEFAULT_CARD_PROPERTIES
+        card = FactCard(identity=ident)
+        statuses = []
+        for slug in props:
+            values, status = self.crosscheck(identifier, slug)
+            heading = _heading(slug)
+            card.properties[heading] = values
+            statuses.append(status)
+        if "conflict" in statuses:
+            card.status = "conflict"
+        elif all(v for v in card.properties.values()) or not any(card.properties.values()):
+            card.status = "verified" if "unverified" not in statuses else "unverified"
+        else:
+            card.status = "unverified"
+        # missing-property note (honesty by default)
+        empty = [h for h, vs in card.properties.items() if not vs]
+        if empty:
+            card.notes.append(f"no sourced value found for: {', '.join(empty)}")
+        return card
+
+
+def _first_number(s: str) -> float | None:
+    import re
+
+    m = re.search(r"-?\d+(?:\.\d+)?", s)
+    return float(m.group(0)) if m else None
+
+
+_TEMP_SLUGS = {"Flash Point", "Boiling Point", "Melting Point", "Autoignition Point"}
+
+
+def _to_celsius(value_str: str, heading: str) -> float | None:
+    """Normalize a temperature value to Celsius (°F strings are converted).
+
+    Returns None for non-temperature properties or non-numeric strings.
+    """
+    n = _first_number(value_str)
+    if n is None:
+        return None
+    if heading not in _TEMP_SLUGS:
+        return n
+    low = value_str.lower()
+    if "°f" in low or low.startswith("f") or "deg f" in low:
+        return (n - 32.0) * 5.0 / 9.0
+    return n
+
+
+# -- renderers ---------------------------------------------------------------
+
+_OBSIDIAN_GROUPS = (
+    ("基础", ("Density", "MolecularWeight", "MolecularFormula")),
+    ("相变（实测）", ("Boiling Point", "Melting Point")),
+    ("安全", ("Flash Point", "Autoignition Point", "Explosive Limits")),
+)
+
+
+def _property_lines(values: list[PropertyValue], language: str = "zh") -> list[str]:
+    lines: list[str] = []
+    if language == "zh":
+        missing = "未能查证（查不到，不编）"
+    else:
+        missing = "not verified (no sourced value found)"
+    if not values:
+        lines.append(f"- {missing}")
+        return lines
+    for v in values:
+        kind_tag = f" [{v.kind}]" if v.kind == "computed" else ""
+        tag = f"{v.source_name}" if v.source_name else "unknown source"
+        lines.append(
+            f"- {v.value}{kind_tag} — {tag} (ref #{v.reference_number}, "
+            f"accessed {v.accessed_at[:10]})"
+        )
+    return lines
+
+
+def card_to_markdown(card: FactCard, obsidian: bool = False) -> str:
+    """Render a FactCard as Markdown.
+
+    ``obsidian=False``: plain English card (open-source default, language-neutral).
+    ``obsidian=True``: bilingual YAML frontmatter + Chinese vault layout
+    (基础 / 相变 / 安全), matching the researcher's Obsidian fact library.
+    """
+    i = card.identity
+    lines: list[str] = []
+    if obsidian:
+        lines.extend(
+            [
+                "---",
+                f'name: "{i.name or i.identifier}"',
+                f"cas: {i.cas or 'unknown'}",
+                f"cid: {i.cid or 'unknown'}",
+                f"status: {card.status}",
+                f"accessed: {i.accessed_at[:10]}",
+                "---",
+                "",
+                f"# {i.name or i.identifier}",
+                "",
+                f"- CAS: `{i.cas or '未能查证'}` | PubChem CID: {i.cid or '未能查证'}",
+                f"- 查证日期: {i.accessed_at[:10]}",
+                "",
+                f"- IUPAC: {i.iupac_name or 'n/a'}",
+                f"- 分子式: `{i.formula or 'n/a'}`",
+                f"- MW: {i.molecular_weight if i.molecular_weight is not None else 'n/a'} g/mol",
+                f"- SMILES: `{i.canonical_smiles or 'n/a'}`",
+                "",
+            ]
+        )
+        for group, heads in _OBSIDIAN_GROUPS:
+            lines.append(f"## {group}")
+            lines.append("")
+            if not any(card.properties.get(h) for h in heads):
+                lines.append("- （本组无数据）")
+                lines.append("")
+                continue
+            for h in heads:
+                values = card.properties.get(h)
+                if values is None:
+                    continue
+                lines.append(f"### {h}")
+                lines.extend(_property_lines(values, "zh"))
+                lines.append("")
+        status_line = {
+            "verified": "已核验 ✓",
+            "conflict": "存在来源冲突（见上）",
+            "unverified": "待复核",
+        }
+        lines.append("## 备注")
+        for n in card.notes:
+            lines.append(f"- {n}")
+        lines.append(f"- 状态: {status_line.get(card.status, card.status)}")
+        return "\n".join(lines)
+
+    lines.append(f"# {i.name or i.identifier} ({i.formula or 'n/a'})")
+    lines.append("")
+    lines.append(f"- IUPAC: {i.iupac_name or 'n/a'}")
+    mw_text = f"{i.molecular_weight} g/mol" if i.molecular_weight is not None else "n/a"
+    lines.append(f"- Formula: `{i.formula or 'n/a'}` | MW: {mw_text}")
+    lines.append(f"- SMILES: `{i.canonical_smiles or 'n/a'}`")
+    lines.append(f"- CAS: {i.cas or 'n/a'} | CID: {i.cid or 'n/a'}")
+    lines.append("")
+    lines.append(f"## Properties (status: {card.status})")
+    for heading, values in card.properties.items():
+        lines.append("")
+        lines.append(f"### {heading}")
+        lines.extend(_property_lines(values, "en"))
+    if card.notes:
+        lines.append("")
+        lines.append("## Notes")
+        for n in card.notes:
+            lines.append(f"- {n}")
+    return "\n".join(lines)
+
+
+def card_to_json(card: FactCard) -> str:
+    i = card.identity
+    payload = {
+        "identity": i.__dict__,
+        "status": card.status,
+        "notes": card.notes,
+        "accessed_at": card.accessed_at,
+        "properties": {
+            h: [v.__dict__ for v in vals] for h, vals in card.properties.items()
+        },
+    }
+    return json.dumps(payload, indent=2, ensure_ascii=False)
