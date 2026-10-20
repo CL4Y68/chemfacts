@@ -147,10 +147,16 @@ class ChemFacts:
         ]
         if len(numeric) >= 2:
             spread = max(numeric) - min(numeric)
-            scale = max(abs(min(numeric)), abs(max(numeric)), 1.0)
-            # same property, meaningfully different numbers -> flag conflict
-            floor = _CONFLICT_FLOORS.get(heading, 2.0)
-            if spread > max(floor, 0.10 * scale):
+            # meaningfully different numbers -> flag conflict.
+            # Temperature properties use a fixed absolute floor (a 10% relative
+            # threshold would swallow a 5 degC flash-point gap at 130 degC);
+            # other properties keep a scale-relative threshold.
+            if heading in _CONFLICT_FLOORS:
+                threshold = _CONFLICT_FLOORS[heading]
+            else:
+                scale = max(abs(min(numeric)), abs(max(numeric)), 1.0)
+                threshold = 0.10 * scale
+            if spread > threshold:
                 # distinguish closed-cup vs open-cup style condition differences
                 text = " ".join(v.value.lower() for v in values)
                 cup_closed = "closed cup" in text or "c.c." in text or "c.c" in text
@@ -256,9 +262,18 @@ class ChemFacts:
 
 
 def _first_number(s: str) -> float | None:
-    import re
+    """The numeric part of a value string.
 
-    m = re.search(r"-?\d+(?:\.\d+)?", s)
+    For colon-formatted entries (ICSC "Relative density (water = 1): 1.03")
+    the number after the last colon is taken, so the "1" in "water = 1"
+    is never returned.
+    """
+    text = s.strip()
+    if ":" in text:
+        m = re.search(r"[-+]?\d+(?:\.\d+)?", text.rsplit(":", 1)[1])
+        if m:
+            return float(m.group(0))
+    m = re.search(r"[-+]?\d+(?:\.\d+)?", text)
     return float(m.group(0)) if m else None
 
 
@@ -271,7 +286,7 @@ _CONFLICT_FLOORS = {
     "Boiling Point": 2.0,
     "Flash Point": 1.5,
     "Autoignition Point": 20.0,
-    "Density": 0.05,
+    "Density": 0.01,
 }
 
 # values carrying these qualifiers are ranges / estimates, not comparable point values
