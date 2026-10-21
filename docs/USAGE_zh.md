@@ -56,9 +56,12 @@
 **CLI / 库（三选一）**
 
 ```bash
-pip install chemfacts
-# 或
-uv tool install chemfacts
+# 主渠道：从 GitHub 安装
+git clone https://github.com/CL4Y68/chemfacts.git
+cd chemfacts
+pip install .
+# 或一行装
+pip install git+https://github.com/CL4Y68/chemfacts
 # 或（本仓库开发态）
 uv run chemfacts --help
 ```

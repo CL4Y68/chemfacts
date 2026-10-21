@@ -253,9 +253,12 @@ flowchart LR
 ## 安装
 
 ```bash
-pip install chemfacts
-# 或
-uv tool install chemfacts
+# 主渠道：从 GitHub 安装
+git clone https://github.com/CL4Y68/chemfacts.git
+cd chemfacts
+pip install .
+# 或一行装
+pip install git+https://github.com/CL4Y68/chemfacts
 ```
 
 需要 Python ≥ 3.11。
@@ -309,7 +312,7 @@ agent（Claude Code、Codex、ZCode、Hermes、各种 agent harness…）都能�
 ### 方式一 · 本地 stdio（不起服务）
 
 ```bash
-pip install chemfacts
+pip install git+https://github.com/CL4Y68/chemfacts
 ```
 
 把 `chemfacts-mcp` 命令注册给你的 agent（每家一行；具体语法随 agent/版本略有

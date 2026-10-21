@@ -282,9 +282,12 @@ Property slugs: `flash-point`, `boiling-point`, `melting-point`, `density`,
 ## Install
 
 ```bash
-pip install chemfacts
-# or
-uv tool install chemfacts
+# primary: install from GitHub
+git clone https://github.com/CL4Y68/chemfacts.git
+cd chemfacts
+pip install .
+# one-liner alternative
+pip install git+https://github.com/CL4Y68/chemfacts
 ```
 
 Requires Python ≥ 3.11.
@@ -339,7 +342,7 @@ verify chemical facts by provenance. Six tools are exposed:
 ### Option 1 — local stdio (no service to run)
 
 ```bash
-pip install chemfacts
+pip install git+https://github.com/CL4Y68/chemfacts
 ```
 
 Register the `chemfacts-mcp` command with your agent (one entry each; exact
