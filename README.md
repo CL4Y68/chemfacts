@@ -40,10 +40,9 @@ flowchart TD
 
     subgraph REG["alias registry · pins ambiguous abbreviations"]
         B{"registered alias?"}:::decide
-        B -- "yes → pin to unique CAS" --> C["pinned identifier + why-not note"]:::proc
     end
-    B -- "no → classify as-is" --> D["classify identifier"]:::proc
-    C --> D
+    B -- "yes → pin to unique CAS" --> D["classify identifier"]:::proc
+    B -- "no → classify as-is" --> D
 
     subgraph PUB["PubChem · network"]
         D --> E["PUG REST · identity<br/>IUPAC · CAS · formula · MW · SMILES · InChIKey"]:::proc
@@ -54,8 +53,28 @@ flowchart TD
         E --> G[("fact cache<br/>TTL + full provenance")]:::store
         F --> G
     end
+    classDef io      fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81
+    classDef proc    fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef decide  fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef store   fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef ok      fill:#bbf7d0,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef warn    fill:#fecaca,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    classDef plain   fill:#e2e8f0,stroke:#64748b,color:#334155
+    classDef card   fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
+    classDef mcp    fill:#cffafe,stroke:#0891b2,color:#164e63
+    classDef ext    fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 4,color:#475569
+```
 
-    G --> H["cross-check<br/>unit-normalise · drop qualified / sub-atmospheric"]:::proc
+Step 1 — **resolve** a query into identity + sourced values:
+pin the abbreviation (if registered), classify the identifier, pull
+PubChem, and cache locally with provenance.
+
+```mermaid
+%%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
+flowchart TD
+    G[("fact cache<br/>TTL + full provenance")]:::store --> H
+
+    H["cross-check<br/>unit-normalise · drop qualified / sub-atmospheric"]:::proc
     H --> I{"spread vs per-property floor?"}:::decide
     I -- "no values" --> J(["unverified"]):::plain
     I -- "spread > floor" --> K(["conflict<br/>unless closed-cup vs open-cup"]):::warn
@@ -74,6 +93,11 @@ flowchart TD
     classDef mcp    fill:#cffafe,stroke:#0891b2,color:#164e63
     classDef ext    fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 4,color:#475569
 ```
+
+Step 2 — **verify**: cross-check the cached values against
+per-property conflict floors; whatever the outcome, everything lands
+in one auditable card.
+
 
 Two design rules hold everywhere:
 
@@ -149,7 +173,7 @@ to version control. See [aliases.example.json](aliases.example.json).
 %%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
 flowchart TD
     A["sourced values for one property"]:::proc
-    B["keep only comparable values<br/>drop 'greater than' / 'approx.'<br/>drop sub-atmospheric ('158 °C @ 10 mmHg')<br/>normalise °F → °C"]:::proc
+    B["keep only comparable values<br/>drop qualified ('approx.') & sub-atmospheric ('10 mmHg')<br/>normalise °F → °C"]:::proc
     C{"≥ 2 values?"}:::decide
     D{"spread > floor?"}:::decide
     E{"closed-cup AND open-cup<br/>both present?"}:::decide

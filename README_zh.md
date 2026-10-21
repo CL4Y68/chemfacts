@@ -33,10 +33,9 @@ flowchart TD
 
     subgraph REG["alias registry · 缩写钉位"]
         B{"注册表里有<br/>这个缩写?"}:::decide
-        B -- "有 → 钉到唯一 CAS" --> C["钉死标识符 + 排除注释"]:::proc
     end
-    B -- "无 → 直接分类" --> D["分类标识符"]:::proc
-    C --> D
+    B -- "有 → 钉到唯一 CAS" --> D["分类标识符"]:::proc
+    B -- "无 → 直接分类" --> D
 
     subgraph PUB["PubChem · 网络"]
         D --> E["PUG REST · 身份<br/>IUPAC · CAS · 分子式 · MW · SMILES · InChIKey"]:::proc
@@ -47,8 +46,27 @@ flowchart TD
         E --> G[("事实缓存<br/>TTL + 完整溯源")]:::store
         F --> G
     end
+    classDef io      fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81
+    classDef proc    fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef decide  fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef store   fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef ok      fill:#bbf7d0,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef warn    fill:#fecaca,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    classDef plain   fill:#e2e8f0,stroke:#64748b,color:#334155
+    classDef card   fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
+    classDef mcp    fill:#cffafe,stroke:#0891b2,color:#164e63
+    classDef ext    fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 4,color:#475569
+```
 
-    G --> H["交叉核对<br/>单位归一 · 剔除限定词/减压值"]:::proc
+第一步 — **解析**：把查询解析成身份 + 带来源数值
+（缩写已注册就钉到 CAS，否则直接分类），拉取 PubChem 并连同溯源一起入本地缓存。
+
+```mermaid
+%%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
+flowchart TD
+    G[("事实缓存<br/>TTL + 完整溯源")]:::store --> H
+
+    H["交叉核对<br/>单位归一 · 剔除限定词/减压值"]:::proc
     H --> I{"极差 vs 属性阈值?"}:::decide
     I -- "无数值" --> J(["unverified 未查证"]):::plain
     I -- "极差超阈值" --> K(["conflict 冲突<br/>（闭杯/开杯<br/>差异除外）"]):::warn
@@ -67,6 +85,10 @@ flowchart TD
     classDef mcp    fill:#cffafe,stroke:#0891b2,color:#164e63
     classDef ext    fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 4,color:#475569
 ```
+
+第二步 — **核验**：用各属性的冲突阈值交叉核对缓存里的数值；无论结果如何，
+全部写进一张可审计卡片。
+
 
 两条设计规则贯穿始终：
 
