@@ -35,7 +35,7 @@ entry, not a memory.
 
 ```mermaid
 %%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
-flowchart TD
+flowchart LR
     A(["input · name / CAS / CID / SMILES / abbreviation"]):::io --> B
 
     subgraph REG["alias registry · pins ambiguous abbreviations"]
@@ -71,7 +71,7 @@ PubChem, and cache locally with provenance.
 
 ```mermaid
 %%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
-flowchart TD
+flowchart LR
     G[("fact cache<br/>TTL + full provenance")]:::store --> H
 
     H["cross-check<br/>unit-normalise · drop qualified / sub-atmospheric"]:::proc
@@ -171,9 +171,9 @@ to version control. See [aliases.example.json](aliases.example.json).
 
 ```mermaid
 %%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
-flowchart TD
+flowchart LR
     A["sourced values for one property"]:::proc
-    B["keep only comparable values<br/>drop qualified ('approx.') & sub-atmospheric ('10 mmHg')<br/>normalise °F → °C"]:::proc
+    B["keep only comparable values<br/>drop qualified ('approx.') &<br/>sub-atmospheric ('10 mmHg')<br/>normalise °F → °C"]:::proc
     C{"≥ 2 values?"}:::decide
     D{"spread > floor?"}:::decide
     E{"closed-cup AND open-cup<br/>both present?"}:::decide
@@ -209,15 +209,20 @@ density ±0.01 g/cm³; everything else uses a 10 % relative threshold.
 
 ```mermaid
 %%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
-flowchart TD
+flowchart LR
     CLI["cli.py · typer<br/>resolve · lookup · verify · crosscheck · card<br/>cache · alias · mcp"]:::mcp
     subgraph CORE["core.py — ChemFacts facade"]
-        direction LR
+        direction TB
         R["resolve()<br/>alias pin → identity → cache"]:::proc
         L["lookup()<br/>PUG View values + provenance"]:::proc
         X["crosscheck()<br/>comparable filter + conflict floors"]:::proc
         V["verify()<br/>claim vs all sourced values"]:::proc
         C["build_card()<br/>identity + properties + status"]:::proc
+
+        R ~~~ L
+        L ~~~ X
+        X ~~~ V
+        V ~~~ C
     end
     CLI --> CORE
     M["mcp_server.py<br/>stdio + streamable-http<br/>any MCP client"]:::mcp

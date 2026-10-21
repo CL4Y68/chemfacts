@@ -28,7 +28,7 @@ verdict: CONFIRMED
 
 ```mermaid
 %%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
-flowchart TD
+flowchart LR
     A(["输入 · 名称 / CAS /<br/>CID / SMILES / 缩写"]):::io --> B
 
     subgraph REG["alias registry · 缩写钉位"]
@@ -63,7 +63,7 @@ flowchart TD
 
 ```mermaid
 %%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
-flowchart TD
+flowchart LR
     G[("事实缓存<br/>TTL + 完整溯源")]:::store --> H
 
     H["交叉核对<br/>单位归一 · 剔除限定词/减压值"]:::proc
@@ -152,7 +152,7 @@ $ chemfacts alias remove DMPA
 
 ```mermaid
 %%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
-flowchart TD
+flowchart LR
     A["某属性的全部来源数值"]:::proc
     B["只保留可比值<br/>剔除限定词（如 approx.）<br/>剔除减压值（如 10 mmHg）<br/>°F→°C 归一"]:::proc
     C{"≥ 2 个值?"}:::decide
@@ -188,15 +188,20 @@ flowchart TD
 
 ```mermaid
 %%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
-flowchart TD
+flowchart LR
     CLI["cli.py · typer<br/>resolve · lookup · verify · crosscheck · card<br/>cache · alias · mcp"]:::mcp
     subgraph CORE["core.py — ChemFacts 门面"]
-        direction LR
+        direction TB
         R["resolve()<br/>缩写钉位 → 身份 → 缓存"]:::proc
         L["lookup()<br/>PUG View 数值 + 溯源"]:::proc
         X["crosscheck()<br/>可比值过滤 + 冲突阈值"]:::proc
         V["verify()<br/>声称值 vs 全部来源值"]:::proc
         C["build_card()<br/>身份 + 物性 + 状态"]:::proc
+
+        R ~~~ L
+        L ~~~ X
+        X ~~~ V
+        V ~~~ C
     end
     CLI --> CORE
     M["mcp_server.py<br/>stdio + streamable-http<br/>任意 MCP 客户端"]:::mcp
