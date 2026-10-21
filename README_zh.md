@@ -28,22 +28,43 @@ verdict: CONFIRMED
 
 ```mermaid
 flowchart TD
-    A["输入：名称 / CAS / CID / SMILES / 缩写"] --> B{"缩写在<br/>alias 注册表里？"}
-    B -- 在 --> C["钉到唯一标识符<br/>（优先 CAS）"]
-    B -- 不在 --> D["分类标识符"]
+    A(["输入 · 名称 / CAS / CID / SMILES / 缩写"]):::io --> B
+
+    subgraph REG["alias registry · 缩写钉位"]
+        B{"注册表里有<br/>这个缩写?"}:::decide
+        B -- "有 → 钉到唯一 CAS" --> C["钉死标识符 + 排除注释"]:::proc
+    end
+    B -- "无 → 直接分类" --> D["分类标识符"]:::proc
     C --> D
-    D --> E["PubChem PUG REST<br/>身份：IUPAC、CAS、分子式、MW、SMILES、InChIKey"]
-    D --> F["PubChem PUG View<br/>带来源的数值：闪点、沸点、熔点、密度……"]
-    E --> G["SQLite 事实缓存<br/>（TTL + 完整溯源）"]
-    F --> G
-    G --> H["交叉核对：单位归一化、剔除<br/>限定词值 / 减压值"]
-    H --> I{"极差 vs 各属性<br/>冲突阈值？"}
-    I -- "无数值" --> J["状态: unverified"]
-    I -- "极差超阈值" --> K["状态: conflict<br/>（闭杯/开杯差异除外）"]
-    I -- "阈值内" --> L["状态: verified"]
-    J --> M["可审计的事实卡片<br/>（Markdown / Obsidian frontmatter / JSON）"]
+
+    subgraph PUB["PubChem · 网络"]
+        D --> E["PUG REST · 身份<br/>IUPAC · CAS · 分子式 · MW · SMILES · InChIKey"]:::proc
+        D --> F["PUG View · 带来源数值<br/>闪点 · 沸点 · 熔点 · 密度 …"]:::proc
+    end
+
+    subgraph LOCAL["本地状态 · SQLite + JSON"]
+        E --> G[("事实缓存<br/>TTL + 完整溯源")]:::store
+        F --> G
+    end
+
+    G --> H["交叉核对<br/>单位归一 · 剔除限定词/减压值"]:::proc
+    H --> I{"极差 vs 属性阈值?"}:::decide
+    I -- "无数值" --> J(["unverified 未查证"]):::plain
+    I -- "极差超阈值" --> K(["conflict 冲突<br/>闭杯/开杯差异除外"]):::warn
+    I -- "阈值内" --> L(["verified 已核验"]):::ok
+    J --> M["可审计事实卡片<br/>Markdown · Obsidian frontmatter · JSON"]:::card
     K --> M
     L --> M
+    classDef io      fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81
+    classDef proc    fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef decide  fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef store   fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef ok      fill:#bbf7d0,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef warn    fill:#fecaca,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    classDef plain   fill:#e2e8f0,stroke:#64748b,color:#334155
+    classDef card   fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
+    classDef mcp    fill:#cffafe,stroke:#0891b2,color:#164e63
+    classDef ext    fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 4,color:#475569
 ```
 
 两条设计规则贯穿始终：
@@ -57,11 +78,27 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A["DMPA"] -->|alias 注册表| B["CAS 4767-03-7<br/>（唯一钥匙）"]
-    B -->|PubChem 解析| C["身份 + 结构：<br/>IUPAC、分子式 C5H10O4、<br/>SMILES、InChIKey、MW"]
-    B -->|PUG View| D["带来源的物性数值<br/>（闪点、密度……）"]
-    C --> E["事实卡片<br/>名称 + 结构 + 数值 + 溯源"]
+    A(["DMPA<br/>含糊缩写"]):::io
+    B["alias registry<br/>钉 → CAS 4767-03-7<br/>+ 排除注释"]:::decide
+    C["PubChem 身份<br/>IUPAC · C5H10O4 · SMILES · InChIKey · MW"]:::proc
+    D["PubChem PUG View<br/>带来源的物性数值"]:::proc
+    E["事实卡片<br/>名称 + 结构 + 数值 + 溯源"]:::card
+
+    A -- "registry 钉位" --> B
+    B -- "解析（CAS 为唯一钥匙）" --> C
+    B -- "查数值" --> D
+    C --> E
     D --> E
+    classDef io      fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81
+    classDef proc    fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef decide  fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef store   fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef ok      fill:#bbf7d0,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef warn    fill:#fecaca,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    classDef plain   fill:#e2e8f0,stroke:#64748b,color:#334155
+    classDef card   fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
+    classDef mcp    fill:#cffafe,stroke:#0891b2,color:#164e63
+    classDef ext    fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 4,color:#475569
 ```
 
 **钉什么、为什么这么设计**：注册表条目只存**小而稳定且无歧义**的部分——缩写 + 钉死的 CAS + 一条"为什么选这个、排除哪些"的注释。结构式、名称、InChIKey 在解析时由 CAS 现查现得，永不与数值脱节。条目格式：
@@ -91,14 +128,33 @@ $ chemfacts alias remove DMPA
 
 ```mermaid
 flowchart TD
-    A["某属性的全部来源数值"] --> B["保留可比值：<br/>剔除限定词（'greater than'、'approx.'）、<br/>剔除减压值（'158 °C at 10 mmHg'）、<br/>°F → °C 归一化"]
-    B --> C{"≥ 2 个值？"}
-    C -- 否 --> D["verified（单一来源，无人可反驳）"]
-    C -- 是 --> E{"极差 > 冲突阈值？"}
-    E -- 否 --> D
-    E -- 是 --> F{"闭杯值和开杯值<br/>同时存在？"}
-    F -- 是 --> D2["verified（测试条件差异，非冲突）"]
-    F -- 否 --> G["CONFLICT——标记出来，列出每个值及来源"]
+    A["某属性的全部来源数值"]:::proc
+    B["只保留可比值<br/>剔除限定词（'greater than'/'approx.'）<br/>剔除减压值（'158 °C @ 10 mmHg'）<br/>°F → °C 归一"]:::proc
+    C{"≥ 2 个值?"}:::decide
+    D{"极差 > 阈值?"}:::decide
+    E{"闭杯值与开杯值<br/>同时存在?"}:::decide
+    V(["verified 已核验<br/>单一来源 · 阈值内 · 杯型差异"]):::ok
+    X(["CONFLICT 冲突<br/>标记出来 · 列出每个值及来源"]):::warn
+    N["各属性冲突阈值<br/>熔点 ±3 · 沸点 ±2 · 闪点 ±1.5 · 自燃 ±20 · 密度 ±0.01<br/>其余: 10% 相对阈值"]:::plain
+
+    A --> B --> C
+    C -- "否" --> V
+    C -- "是" --> D
+    D -- "否" --> V
+    D -- "是" --> E
+    E -- "是" --> V
+    E -- "否" --> X
+    D -. "阈值" .-> N
+    classDef io      fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81
+    classDef proc    fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef decide  fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef store   fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef ok      fill:#bbf7d0,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef warn    fill:#fecaca,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    classDef plain   fill:#e2e8f0,stroke:#64748b,color:#334155
+    classDef card   fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
+    classDef mcp    fill:#cffafe,stroke:#0891b2,color:#164e63
+    classDef ext    fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 4,color:#475569
 ```
 
 各属性的冲突阈值（floor）避免把正常来源波动误报为冲突：熔点 ±3 °C、沸点 ±2 °C、闪点 ±1.5 °C、自燃点 ±20 °C、密度 ±0.01 g/cm³；其余属性用 10 % 相对阈值。
@@ -107,20 +163,35 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    CLI["cli.py (typer)<br/>resolve · lookup · verify · crosscheck · card · cache · alias"] --> CORE
+    CLI["cli.py · typer<br/>resolve · lookup · verify · crosscheck · card<br/>cache · alias · mcp"]:::mcp
     subgraph CORE["core.py — ChemFacts 门面"]
-        R["resolve()：alias 钉位 → PubChem 身份 → 缓存"]
-        L["lookup()：PUG View 数值 + 溯源"]
-        X["crosscheck()：可比值过滤 + 冲突阈值"]
-        V["verify()：声称值 vs 全部来源值"]
-        CD["build_card()：身份 + 物性 + 状态"]
+        direction LR
+        R["resolve()<br/>缩写钉位 → 身份 → 缓存"]:::proc
+        L["lookup()<br/>PUG View 数值 + 溯源"]:::proc
+        X["crosscheck()<br/>可比值过滤 + 冲突阈值"]:::proc
+        V["verify()<br/>声称值 vs 全部来源值"]:::proc
+        C["build_card()<br/>身份 + 物性 + 状态"]:::proc
     end
-    CORE --> P["pubchem.py<br/>PUG REST + PUG View 客户端<br/>（限流、重试、4xx → PubChemError）"]
-    CORE --> C["cache.py<br/>SQLite：identity / value / ref 表<br/>TTL，重载保留溯源"]
-    CORE --> A2["aliases.py<br/>JSON 注册表：缩写 → CAS + 注释"]
-    P --> PC[("PubChem API")]
-    C --> DB[("~/.cache/chemfacts/facts.db")]
-    A2 --> J[("~/.cache/chemfacts/aliases.json")]
+    CLI --> CORE
+    M["mcp_server.py<br/>stdio + streamable-http<br/>任意 MCP 客户端"]:::mcp
+    CORE --> M
+    M --> AG["agents · Claude Code · Codex · Zed · Hermes …"]:::ext
+    CORE --> P["pubchem.py<br/>PUG REST + PUG View 客户端<br/>限流 · 重试 · 4xx → PubChemError"]:::proc
+    CORE --> CA["cache.py<br/>SQLite: identity / value / ref<br/>TTL · 重载保留溯源"]:::store
+    CORE --> AL["aliases.py<br/>JSON 注册表<br/>缩写 → CAS + 注释"]:::store
+    P --> PC[("PubChem API")]:::ext
+    CA --> DB[("~/.cache/chemfacts/facts.db")]:::ext
+    AL --> J[("~/.cache/chemfacts/aliases.json")]:::ext
+    classDef io      fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81
+    classDef proc    fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef decide  fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef store   fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef ok      fill:#bbf7d0,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef warn    fill:#fecaca,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    classDef plain   fill:#e2e8f0,stroke:#64748b,color:#334155
+    classDef card   fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
+    classDef mcp    fill:#cffafe,stroke:#0891b2,color:#164e63
+    classDef ext    fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 4,color:#475569
 ```
 
 ## 命令一览

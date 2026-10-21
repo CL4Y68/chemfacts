@@ -35,22 +35,43 @@ entry, not a memory.
 
 ```mermaid
 flowchart TD
-    A["input: name / CAS / CID / SMILES / abbreviation"] --> B{"abbreviation<br/>in alias registry?"}
-    B -- yes --> C["pin to unique identifier<br/>(CAS preferred)"]
-    B -- no --> D["classify identifier"]
+    A(["input · name / CAS / CID / SMILES / abbreviation"]):::io --> B
+
+    subgraph REG["alias registry · pins ambiguous abbreviations"]
+        B{"registered alias?"}:::decide
+        B -- "yes → pin to unique CAS" --> C["pinned identifier + why-not note"]:::proc
+    end
+    B -- "no → classify as-is" --> D["classify identifier"]:::proc
     C --> D
-    D --> E["PubChem PUG REST<br/>identity: IUPAC, CAS, formula, MW, SMILES, InChIKey"]
-    D --> F["PubChem PUG View<br/>sourced values: flash point, bp, mp, density, ..."]
-    E --> G["SQLite fact cache<br/>(TTL + full provenance)"]
-    F --> G
-    G --> H["cross-check: unit-normalise, drop<br/>qualified / sub-atmospheric values"]
-    H --> I{"spread vs. per-property<br/>conflict floor?"}
-    I -- "no values" --> J["status: unverified"]
-    I -- "spread > floor" --> K["status: conflict<br/>(unless closed-cup vs open-cup split)"]
-    I -- "within floor" --> L["status: verified"]
-    J --> M["auditable fact card<br/>(Markdown / Obsidian frontmatter / JSON)"]
+
+    subgraph PUB["PubChem · network"]
+        D --> E["PUG REST · identity<br/>IUPAC · CAS · formula · MW · SMILES · InChIKey"]:::proc
+        D --> F["PUG View · sourced values<br/>flash point · bp · mp · density …"]:::proc
+    end
+
+    subgraph LOCAL["local state · SQLite + JSON"]
+        E --> G[("fact cache<br/>TTL + full provenance")]:::store
+        F --> G
+    end
+
+    G --> H["cross-check<br/>unit-normalise · drop qualified / sub-atmospheric"]:::proc
+    H --> I{"spread vs per-property floor?"}:::decide
+    I -- "no values" --> J(["unverified"]):::plain
+    I -- "spread > floor" --> K(["conflict<br/>unless closed-cup vs open-cup"]):::warn
+    I -- "within floor" --> L(["verified"]):::ok
+    J --> M["auditable fact card<br/>Markdown · Obsidian frontmatter · JSON"]:::card
     K --> M
     L --> M
+    classDef io      fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81
+    classDef proc    fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef decide  fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef store   fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef ok      fill:#bbf7d0,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef warn    fill:#fecaca,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    classDef plain   fill:#e2e8f0,stroke:#64748b,color:#334155
+    classDef card   fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
+    classDef mcp    fill:#cffafe,stroke:#0891b2,color:#164e63
+    classDef ext    fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 4,color:#475569
 ```
 
 Two design rules hold everywhere:
@@ -68,11 +89,27 @@ butyl acrylate). The registry resolves that once, for every subsequent lookup:
 
 ```mermaid
 flowchart LR
-    A["DMPA"] -->|alias registry| B["CAS 4767-03-7<br/>(unique key)"]
-    B -->|PubChem resolve| C["identity + structure:<br/>IUPAC, formula C5H10O4,<br/>SMILES, InChIKey, MW"]
-    B -->|PUG View| D["sourced property values<br/>(flash point, density, ...)"]
-    C --> E["fact card<br/>name + structure + values + provenance"]
+    A(["DMPA<br/>ambiguous abbreviation"]):::io
+    B["alias registry<br/>pin → CAS 4767-03-7<br/>+ why-not note"]:::decide
+    C["PubChem identity<br/>IUPAC · C5H10O4 · SMILES · InChIKey · MW"]:::proc
+    D["PubChem PUG View<br/>sourced property values"]:::proc
+    E["fact card<br/>name + structure + values + provenance"]:::card
+
+    A -- "registry pin" --> B
+    B -- "resolve (CAS = unique key)" --> C
+    B -- "query" --> D
+    C --> E
     D --> E
+    classDef io      fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81
+    classDef proc    fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef decide  fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef store   fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef ok      fill:#bbf7d0,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef warn    fill:#fecaca,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    classDef plain   fill:#e2e8f0,stroke:#64748b,color:#334155
+    classDef card   fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
+    classDef mcp    fill:#cffafe,stroke:#0891b2,color:#164e63
+    classDef ext    fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 4,color:#475569
 ```
 
 What is pinned and why: a registry entry stores only the **small, stable, unambiguous
@@ -108,14 +145,33 @@ to version control. See [aliases.example.json](aliases.example.json).
 
 ```mermaid
 flowchart TD
-    A["sourced values for one property"] --> B["keep comparable values:<br/>drop qualified strings ('greater than', 'approx.'),<br/>drop sub-atmospheric pressures ('158 °C at 10 mmHg'),<br/>normalise °F → °C"]
-    B --> C{"≥ 2 values?"}
-    C -- no --> D["verified (single source, no peer to contradict)"]
-    C -- yes --> E{"spread > conflict floor?"}
-    E -- no --> D
-    E -- yes --> F{"closed-cup AND open-cup<br/>values both present?"}
-    F -- yes --> D2["verified (condition difference, not conflict)"]
-    F -- no --> G["CONFLICT — flag it, show every value + source"]
+    A["sourced values for one property"]:::proc
+    B["keep only comparable values<br/>drop 'greater than' / 'approx.'<br/>drop sub-atmospheric ('158 °C @ 10 mmHg')<br/>normalise °F → °C"]:::proc
+    C{"≥ 2 values?"}:::decide
+    D{"spread > floor?"}:::decide
+    E{"closed-cup AND open-cup<br/>both present?"}:::decide
+    V(["verified<br/>single source · within floor · cup difference"]):::ok
+    X(["CONFLICT<br/>flag it · show every value + source"]):::warn
+    N["per-property floors<br/>mp ±3 · bp ±2 · flash ±1.5 · autoignition ±20 · density ±0.01<br/>other: 10% relative"]:::plain
+
+    A --> B --> C
+    C -- "no" --> V
+    C -- "yes" --> D
+    D -- "no" --> V
+    D -- "yes" --> E
+    E -- "yes" --> V
+    E -- "no" --> X
+    D -. "floors" .-> N
+    classDef io      fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81
+    classDef proc    fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef decide  fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef store   fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef ok      fill:#bbf7d0,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef warn    fill:#fecaca,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    classDef plain   fill:#e2e8f0,stroke:#64748b,color:#334155
+    classDef card   fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
+    classDef mcp    fill:#cffafe,stroke:#0891b2,color:#164e63
+    classDef ext    fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 4,color:#475569
 ```
 
 Per-property floors keep normal source-to-source variation from being flagged:
@@ -126,20 +182,35 @@ density ±0.01 g/cm³; everything else uses a 10 % relative threshold.
 
 ```mermaid
 flowchart TD
-    CLI["cli.py (typer)<br/>resolve · lookup · verify · crosscheck · card · cache · alias"] --> CORE
+    CLI["cli.py · typer<br/>resolve · lookup · verify · crosscheck · card<br/>cache · alias · mcp"]:::mcp
     subgraph CORE["core.py — ChemFacts facade"]
-        R["resolve(): alias pin → PubChem identity → cache"]
-        L["lookup(): PUG View values with provenance"]
-        X["crosscheck(): comparable-value filter + conflict floors"]
-        V["verify(): claim vs. all sourced values"]
-        CD["build_card(): identity + properties + status"]
+        direction LR
+        R["resolve()<br/>alias pin → identity → cache"]:::proc
+        L["lookup()<br/>PUG View values + provenance"]:::proc
+        X["crosscheck()<br/>comparable filter + conflict floors"]:::proc
+        V["verify()<br/>claim vs all sourced values"]:::proc
+        C["build_card()<br/>identity + properties + status"]:::proc
     end
-    CORE --> P["pubchem.py<br/>PUG REST + PUG View client<br/>(throttled, retried, 4xx → PubChemError)"]
-    CORE --> C["cache.py<br/>SQLite: identity / value / ref tables<br/>TTL, provenance kept on reload"]
-    CORE --> A2["aliases.py<br/>JSON registry: abbreviation → CAS + note"]
-    P --> PC[("PubChem API")]
-    C --> DB[("~/.cache/chemfacts/facts.db")]
-    A2 --> J[("~/.cache/chemfacts/aliases.json")]
+    CLI --> CORE
+    M["mcp_server.py<br/>stdio + streamable-http<br/>any MCP client"]:::mcp
+    CORE --> M
+    M --> AG["agents · Claude Code · Codex · Zed · Hermes …"]:::ext
+    CORE --> P["pubchem.py<br/>PUG REST + PUG View client<br/>throttled · retried · 4xx → PubChemError"]:::proc
+    CORE --> CA["cache.py<br/>SQLite: identity / value / ref<br/>TTL · provenance kept on reload"]:::store
+    CORE --> AL["aliases.py<br/>JSON registry<br/>abbreviation → CAS + note"]:::store
+    P --> PC[("PubChem API")]:::ext
+    CA --> DB[("~/.cache/chemfacts/facts.db")]:::ext
+    AL --> J[("~/.cache/chemfacts/aliases.json")]:::ext
+    classDef io      fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81
+    classDef proc    fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef decide  fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef store   fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef ok      fill:#bbf7d0,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef warn    fill:#fecaca,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    classDef plain   fill:#e2e8f0,stroke:#64748b,color:#334155
+    classDef card   fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
+    classDef mcp    fill:#cffafe,stroke:#0891b2,color:#164e63
+    classDef ext    fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 4,color:#475569
 ```
 
 ## Commands
