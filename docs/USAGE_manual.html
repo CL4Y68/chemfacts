@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>chemfacts · 溯源优先化学事实查证工具 · 使用手册</title>
+<style>
+@page { size: A4; margin: 15mm 14mm; }
+* { box-sizing: border-box; }
+body { font-family: "Segoe UI","Microsoft YaHei","PingFang SC",sans-serif; color:#22303f; font-size:10pt; line-height:1.62; margin:0; }
+h1 { font-size:21pt; margin:0 0 3pt; color:#14233d; letter-spacing:.5px; }
+h2 { font-size:14pt; color:#14233d; margin:18pt 0 7pt; padding-bottom:5px; border-bottom:2px solid #dfe6f0; }
+h2 .n { display:inline-block; font-size:8pt; font-weight:700; color:#fff; background:#14233d; border-radius:4px; padding:2px 8px; margin-right:8px; vertical-align:middle; }
+h2.fact { border-bottom-color:#0e7c66; } h2.fact .n { background:#0e7c66; }
+h2.data { border-bottom-color:#b45309; } h2.data .n { background:#b45309; }
+h3 { font-size:11.5pt; color:#2b3f5c; margin:11pt 0 4pt; }
+p { margin:4.5pt 0; text-align:justify; }
+.subtitle { color:#5a6b82; font-size:9.5pt; margin-bottom:4pt; }
+.lead { font-size:10pt; color:#3a4a5f; }
+
+.badge { display:inline-block; font-size:7.5pt; font-weight:700; letter-spacing:.5px; padding:2px 8px; border-radius:10px; vertical-align:middle; }
+.badge.fact { background:#e0f2ee; color:#0a5c4d; }
+.badge.data { background:#fbeedd; color:#8a3d05; }
+
+.note { background:#f5f8fc; border-left:3px solid #4a72c4; border-radius:0 5px 5px 0; padding:7px 11px; margin:8pt 0; font-size:9pt; }
+.note.fact { border-left-color:#0e7c66; background:#eef7f4; }
+.note.data { border-left-color:#b45309; background:#fdf4ec; }
+.note b:first-child { color:#14233d; }
+.note .cap { font-weight:700; font-size:8.5pt; letter-spacing:.3px; }
+
+pre { background:#0f1729; color:#cdd8ee; font-size:7.5pt; line-height:1.55; padding:10px 13px; border-radius:6px; white-space:pre-wrap; word-break:break-word; margin:7pt 0; font-family:"Cascadia Code","JetBrains Mono",Consolas,monospace; }
+pre .c { color:#6f8bc0; } pre .g { color:#5fd0a5; } pre .o { color:#f0b866; } pre .k { color:#7aa5ff; }
+code { font-family:"Cascadia Code",Consolas,monospace; background:#eef2f8; color:#274060; padding:1px 5px; border-radius:3px; font-size:8.5pt; }
+
+table { border-collapse:collapse; width:100%; margin:7pt 0; font-size:8.7pt; }
+th { color:#fff; padding:6px 9px; text-align:left; font-weight:600; font-size:8.3pt; }
+tr.fact th { background:#0e7c66; } tr.data th { background:#b45309; } tr.plain th { background:#14233d; }
+td { border:1px solid #dbe4f0; padding:6px 9px; vertical-align:top; }
+tbody tr:nth-child(even) td { background:#f7fafd; }
+td .k { font-weight:700; color:#14233d; }
+
+.kpi { display:flex; gap:9px; margin:10pt 0; }
+.kpi > div { flex:1; border:1px solid #dbe4f0; border-radius:8px; padding:9px 11px; background:#fbfcfe; }
+.kpi .n { font-size:17pt; font-weight:700; line-height:1; }
+.kpi .l { font-size:7.8pt; color:#5a6b82; margin-top:4px; line-height:1.35; }
+.kpi .fact .n{color:#0e7c66;} .kpi .data .n{color:#b45309;} .kpi .all .n{color:#14233d;}
+
+.strip { display:flex; gap:0; margin:9pt 0; border-radius:8px; overflow:hidden; border:1px solid #dbe4f0; }
+.strip > div { flex:1; padding:9px 13px; }
+.strip .fact { background:#eef7f4; } .strip .data { background:#fdf4ec; }
+.strip h4 { margin:0 0 3px; font-size:10.5pt; } .strip .fact h4{color:#0a5c4d;} .strip .data h4{color:#8a3d05;}
+.strip p { font-size:8.3pt; margin:0; color:#4a5a70; }
+
+.svgbox { margin:9pt 0; text-align:center; }
+.svgbox .cap { font-size:8pt; color:#5a6b82; margin-top:4px; text-align:center; }
+.diagram { max-width:100%; height:auto; }
+.figexp { background:#f7f9fc; border:1px solid #e3eaf4; border-left:3px solid #8aa4c8; border-radius:0 6px 6px 0; padding:8px 13px; margin:0 0 10pt; font-size:8.7pt; color:#3a4a5f; text-align:justify; }
+.figexp .h { font-weight:700; color:#14233d; font-size:9pt; display:block; margin-bottom:3px; letter-spacing:.3px; }
+.figexp ol { margin:3pt 0 0; padding-left:15pt; } .figexp li { margin:2.5pt 0; }
+
+.pagebreak { page-break-before:always; }
+.small { font-size:8pt; color:#74829a; }
+footer { font-size:7.5pt; color:#8494ad; margin-top:14pt; border-top:1px solid #dbe4f0; padding-top:6pt; }
+.tagline { display:inline-block; font-size:8pt; color:#5a6b82; border:1px solid #dbe4f0; border-radius:10px; padding:2px 9px; margin:0 4px; }
+h4.sub { font-size:10pt; color:#2b3f5c; margin:8pt 0 3pt; }
+</style>
+</head>
+<body>
+
+<!-- ============ P1 封面 / 总览 ============ -->
+<h1>chemfacts · 溯源优先化学事实查证 · 使用手册</h1>
+<div class="subtitle">面向使用者的功能说明、操作指引与可复核证据</div>
+<div style="margin:6pt 0 2pt">
+<span class="tagline">版本 v0.3.0 · commit 34b4be4</span>
+<span class="tagline">环境 Windows · Python 3.11.15 (venv)</span>
+<span class="tagline">缓存快照 2026-10-21 · TTL 30 天</span>
+</div>
+
+<p class="lead">本手册说明 <b>chemfacts</b> —— 一个"溯源优先"（provenance-first）的化学事实查证工具：命令行 8 个命令 + 内置 MCP 服务 6 个工具。它回答的问题不是"某物质闪点是多少"，而是"这个数值<b>来自哪、谁测的、什么时候查的、实测还是算的</b>"。三层结构：查询层（CLI / MCP）→ 查证核心（resolve / lookup / verify / crosscheck / card / alias）→ 数据层（SQLite 缓存 + 别名注册表 + PubChem REST）。手册按"设计原理 → 各功能 → 数据层与集成 → 工作流 → 边界"组织；每项功能均附一次真实运行的输出，供逐步复现核对。</p>
+
+<div class="strip">
+<div class="fact"><h4>查证核心 · 六能力</h4><p>resolve 身份核验 → lookup 数值带溯源 → verify 宣称值对照 → crosscheck 多源交叉 → card 可审计卡片 → alias 缩写钉位。三态判定（verified / conflict / unverified），缺失即报缺失，绝不填补。</p></div>
+<div class="data"><h4>数据层与集成</h4><p>SQLite 缓存（TTL 30 天，数值可复现）· aliases.json 手工策展（缩写→唯一 CAS）· Obsidian 卡片入库 · MCP 服务（Claude Code / Codex / ZCode / DeepSeek 等任意 MCP 客户端）。</p></div>
+</div>
+
+<div class="svgbox">
+<svg class="diagram" viewBox="0 0 720 190" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,Microsoft YaHei,sans-serif">
+  <defs>
+    <marker id="a1" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#14233d"/></marker>
+  </defs>
+  <rect x="10" y="28" width="180" height="104" rx="10" fill="#f5f8fc" stroke="#4a72c4" stroke-width="1.5"/>
+  <text x="26" y="52" font-size="13" font-weight="700" fill="#14233d">查询层</text>
+  <text x="26" y="72" font-size="9.5" fill="#3a4a5f">CLI · 8 命令（typer）</text>
+  <text x="26" y="88" font-size="9.5" fill="#3a4a5f">MCP · 6 工具（stdio/http）</text>
+  <text x="26" y="104" font-size="9.5" fill="#3a4a5f">--json 机器可读输出</text>
+  <text x="26" y="120" font-size="8" fill="#74829a">使用者 / agent 入口</text>
+  <rect x="270" y="28" width="200" height="104" rx="10" fill="#eef7f4" stroke="#0e7c66" stroke-width="1.5"/>
+  <text x="286" y="52" font-size="13" font-weight="700" fill="#0a5c4d">查证核心</text>
+  <g font-size="9.5" fill="#0a5c4d" font-weight="600">
+    <text x="286" y="74">resolve · 身份核验（别名钉位 → CID）</text>
+    <text x="286" y="90">lookup · 数值 + 四要素溯源</text>
+    <text x="286" y="106">verify / crosscheck · 判定</text>
+    <text x="286" y="122">card / alias · 卡片 / 钉位</text>
+  </g>
+  <rect x="530" y="28" width="180" height="104" rx="10" fill="#fdf4ec" stroke="#b45309" stroke-width="1.5"/>
+  <text x="546" y="52" font-size="13" font-weight="700" fill="#8a3d05">数据层</text>
+  <text x="546" y="72" font-size="9.5" fill="#3a4a5f">SQLite 缓存（TTL 30d）</text>
+  <text x="546" y="88" font-size="9.5" fill="#3a4a5f">aliases.json（手工策展）</text>
+  <text x="546" y="104" font-size="9.5" fill="#3a4a5f">PubChem REST（权威源）</text>
+  <text x="546" y="120" font-size="8" fill="#74829a">facts.db · 14 身份 / 224 值 / 1227 参考</text>
+  <line x1="190" y1="80" x2="266" y2="80" stroke="#14233d" stroke-width="1.8" marker-end="url(#a1)"/>
+  <text x="228" y="72" font-size="8.5" fill="#5a6b82" text-anchor="middle">解析+钉位</text>
+  <line x1="470" y1="80" x2="526" y2="80" stroke="#14233d" stroke-width="1.8" marker-end="url(#a1)"/>
+  <text x="498" y="72" font-size="8.5" fill="#5a6b82" text-anchor="middle">读/写</text>
+  <text x="360" y="164" font-size="9.5" font-weight="700" fill="#14233d" text-anchor="middle">每个数值携带四要素：来源名 · PubChem 参考编号 · 查证日期 · 实测/计算</text>
+  <text x="360" y="182" font-size="8" fill="#74829a" text-anchor="middle">溯源放在核心层而非展示层——任何出口（CLI 表格 / JSON / 卡片 / MCP）都带同一套出处</text>
+</svg>
+<div class="cap">图 1 · 三层架构：查询层与数据层之间的"查证核心"是唯一事实来源，六能力共享同一条解析链路</div>
+</div>
+<div class="figexp"><span class="h">图 1 说明 · 为什么分成这三层</span>
+<ol>
+<li><b>查询层</b>只负责"进入"：CLI 供人直接用，MCP 供 agent 直接调；同一核心、同一语义，不存在"CLI 一套答案、MCP 另一套答案"。机器消费走 <code>--json</code>，人消费走 rich 表格。</li>
+<li><b>查证核心</b>是唯一的判定中枢：resolve 完成"标识符 → 唯一 CAS → CID"的钉位解析；lookup/verify/crosscheck 消费同一缓存做数值对照与判定；card 把结果固化成带出处的可审计记录；alias 管理钉位本身。判定逻辑与展示分离，因此三态结果在六个出口（表格/JSON/卡片/MCP 工具）之间<b>严格一致</b>。</li>
+<li><b>数据层</b>承载复现性：SQLite 缓存带 TTL（30 天），TTL 内任何输出可逐字复现；aliases.json 是纯 JSON、可 diff、可提交版本控制，钉位修改是有记录的编辑行为，而非"模型记得住"；PubChem 是唯一权威数据源，工具从不把二手来源当权威。</li>
+</ol>
+</div>
+
+<h3>系统当前状态（可复核）</h3>
+<div class="kpi">
+<div class="fact"><div class="n">224</div><div class="l">缓存物性值<br>(value 行 · 每条带来源+参考编号)</div></div>
+<div class="fact"><div class="n">1227</div><div class="l">PubChem 参考条目<br>(ref 行 · 溯源编号池)</div></div>
+<div class="data"><div class="n">13</div><div class="l">别名钉位<br>(aliases.json · 缩写→唯一 CAS)</div></div>
+<div class="data"><div class="n">6</div><div class="l">MCP 工具<br>(resolve/lookup/crosscheck/verify/card/alias)</div></div>
+</div>
+
+<div class="note"><span class="cap">证据快照</span>：本手册所有输出抓自<b>同一缓存快照</b>（v0.3.0 · facts.db · 2026-10-21 13:30 UTC 拉取 · identity 14 / value 224 / ref 1227 · 别名 13 条）。TTL（30 天）内重跑各命令，数值与来源逐字一致，仅 <code>accessed</code> 日期可能刷新；<code>cache clear</code> 后重新拉取，应只有日期变化——这是第 4 节"复现指引"的核对基准。</div>
+
+<!-- ============ P2 查证核心·原理 ============ -->
+<div class="pagebreak"></div>
+<h2 class="fact"><span class="n">1</span>查证核心：三态判定的化学事实工具 <span class="badge fact">核心</span></h2>
+<p class="lead">chemfacts 解决的核心问题：把"模型背出来的化学数值"替换为<b>可追溯、可交叉、可审计</b>的带来源数值。三条设计原则贯穿全部命令。</p>
+<table class="fact"><tr><th style="width:24%">设计原则</th><th>含义与实现</th></tr>
+<tr><td class="k">溯源优先</td><td>每条数值强制携带四要素：来源名（OSHA / HSDB / CAMEO / ILO ICSC / NIOSH / EPA…）+ PubChem 参考编号 + 查证日期 + 实测/计算属性。缺任一要素即不入缓存，从结构上杜绝"无据数值"。</td></tr>
+<tr><td class="k">三态判定 (fail-closed)</td><td>多源数值交叉核对后落到 verified / conflict / unverified 三态之一。没有带来源的数据就<b>报缺失</b>（<code>no sourced value found</code>），来源打架就<b>摊开每个值</b>让人判，绝不用模型填补、绝不下二元结论。</td></tr>
+<tr><td class="k">缩写先钉位</td><td>含糊缩写（DMPA、H12MDI、BA…）可能指向多种物质；注册表把缩写一次性钉到<b>唯一 CAS</b> 并记录排除理由。钉子是 JSON 条目（可 diff、可版本控制），不是"记得住"。</td></tr>
+</table>
+
+<h3>状态三态与冲突阈值</h3>
+<table class="plain"><tr><th style="width:16%">状态</th><th style="width:44%">含义</th><th>触发条件</th></tr>
+<tr><td class="k">verified</td><td>已核验</td><td>单一来源 / 多来源极差在阈值内 / 差异可归因于闭杯 vs 开杯</td></tr>
+<tr><td class="k">conflict</td><td>冲突</td><td>极差超阈值且<b>不是</b>杯型差异——工具如实列出每个值，必须人工复核</td></tr>
+<tr><td class="k">unverified</td><td>未查证</td><td>没有带来源的数值可查——<b>报缺失，不编</b></td></tr>
+</table>
+<p>各属性冲突阈值（floor）避免把正常来源波动误报成冲突：熔点 ±3 °C、沸点 ±2 °C、闪点 ±1.5 °C、自燃 ±20 °C、密度 ±0.01 g/cm³；其余属性用 10% 相对阈值。闭杯（c.c.）与开杯（o.c.）天然不同，工具识别后<b>不算冲突</b>。</p>
+
+<h3>物性 slug（CLI 参数，映射到 PubChem PUG View 标题）</h3>
+<table class="fact"><tr><th style="width:34%">slug（含别名）</th><th>PUG View 标题</th></tr>
+<tr><td><code>flash-point</code> / <code>flash</code></td><td>Flash Point</td></tr>
+<tr><td><code>boiling-point</code> / <code>boiling</code> / <code>bp</code></td><td>Boiling Point</td></tr>
+<tr><td><code>melting-point</code> / <code>melting</code> / <code>mp</code></td><td>Melting Point</td></tr>
+<tr><td><code>density</code> · <code>solubility</code> · <code>vapor-pressure</code></td><td>Density / Solubility / Vapor Pressure</td></tr>
+<tr><td><code>autoignition-point</code> · <code>explosive-limits</code></td><td>Autoignition Point / Explosive Limits</td></tr>
+<tr><td><code>surface-tension</code> · <code>viscosity</code></td><td>Surface Tension / Viscosity</td></tr>
+<tr><td><code>molecular-weight</code> / <code>mw</code> · <code>formula</code></td><td>MolecularWeight / MolecularFormula（走 PUG REST 身份）</td></tr>
+</table>
+
+<div class="pagebreak"></div>
+<h3>功能一 · resolve：身份核验（标识符 → 唯一 CAS → CID）</h3>
+<p>使用者输入任意标识符（缩写、名称、CAS），resolve 完成三段解析：若命中别名注册表则先钉位（并打印"为什么钉到它"的注释），再经 PubChem 解析到 CID，返回身份九项 + 出处。这是后续所有数值查询的地基——<b>身份错了，数值全错</b>。</p>
+
+<div class="svgbox">
+<svg class="diagram" viewBox="0 0 720 132" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,Microsoft YaHei,sans-serif">
+  <defs><marker id="a2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#0e7c66"/></marker></defs>
+  <g>
+    <rect x="10"  y="18" width="124" height="46" rx="7" fill="#eef7f4" stroke="#0e7c66" stroke-width="1.4"/>
+    <rect x="154" y="18" width="124" height="46" rx="7" fill="#12917a"/>
+    <rect x="298" y="18" width="124" height="46" rx="7" fill="#18a890"/>
+    <rect x="442" y="18" width="124" height="46" rx="7" fill="#28b89f"/>
+    <rect x="586" y="18" width="124" height="46" rx="7" fill="#fff" stroke="#0e7c66" stroke-width="1.6"/>
+    <g font-size="10" font-weight="700" fill="#0a5c4d">
+      <text x="62" y="37" text-anchor="middle">① 用户查询</text>
+      <text x="196" y="37" text-anchor="middle" fill="#fff">② 别名钉位</text>
+      <text x="340" y="37" text-anchor="middle" fill="#043d33">③ CAS 解析</text>
+      <text x="484" y="37" text-anchor="middle" fill="#043d33">④ 缓存命中</text>
+      <text x="648" y="37" text-anchor="middle">⑤ 溯源结果</text>
+    </g>
+    <g font-size="8" fill="#5a6b82" text-anchor="middle">
+      <text x="62" y="55">"NMP"（自由文本）</text>
+      <text x="196" y="37" fill="#fff" opacity="0"></text>
+      <text x="340" y="55" fill="#043d33">872-50-4 → CID 13387</text>
+      <text x="484" y="55" fill="#043d33">identity 14 条内命中</text>
+      <text x="648" y="55">九项身份 + 出处</text>
+    </g>
+    <line x1="134" y1="41" x2="152" y2="41" stroke="#0e7c66" stroke-width="1.6" marker-end="url(#a2)"/>
+    <line x1="278" y1="41" x2="296" y2="41" stroke="#0e7c66" stroke-width="1.6" marker-end="url(#a2)"/>
+    <line x1="422" y1="41" x2="440" y2="41" stroke="#0e7c66" stroke-width="1.6" marker-end="url(#a2)"/>
+    <line x1="566" y1="41" x2="584" y2="41" stroke="#0e7c66" stroke-width="1.6" marker-end="url(#a2)"/>
+    <text x="360" y="86" font-size="8.5" fill="#5a6b82" text-anchor="middle">② 层：13 条钉位，每条带 CAS + 排除理由注释（如 H12MDI 明确排除 1,12-二异氰酸酯十二烷）</text>
+    <text x="360" y="102" font-size="8.5" fill="#5a6b82" text-anchor="middle">③④ 层：PubChem 解析结果落 SQLite 缓存（TTL 30 天），TTL 内后续查询零网络请求、逐字可复现</text>
+    <text x="360" y="118" font-size="8.5" fill="#74829a" text-anchor="middle">直接以 CAS 号查询时跳过 ②，从 ③ 进入</text>
+  </g>
+</svg>
+<div class="cap">图 2 · resolve 的五段解析链路；实线为数据流，② 为别名注册表拦截点</div>
+</div>
+<div class="figexp"><span class="h">图 2 说明 · 五段链路各自的职责</span>
+<ol>
+<li><b>① 用户查询</b>：接受自由文本（缩写 / 名称 / CAS）。"NMP" 本身不含结构信息，不能直接查 PubChem——它需要先被<b>钉位</b>。</li>
+<li><b>② 别名钉位</b>：注册表命中即输出 <code>pinned via alias</code> 行，且把"为什么"（排除理由）一并打印。这一步把"实验室黑话"转成唯一 CAS，是整条链可审计性的起点。</li>
+<li><b>③ CAS 解析</b>：CAS → PubChem CID。CAS 是全球唯一的结构标识，从此歧义清零。</li>
+<li><b>④ 缓存命中</b>：身份九项（名称/IUPAC/CAS/分子式/MW/SMILES/InChI/InChIKey + 出处）落 SQLite；TTL 内复用，保证同快照复现。</li>
+<li><b>⑤ 溯源结果</b>：最后两行 <code>Accessed / source</code> 给出拉取时间与权威源标记——使用者凭 CID 即可独立回 PubChem 页面核对。</li>
+</ol>
+</div>
+
+<h4 class="sub">真实输出（NMP，本手册证据快照）</h4>
+<pre><span class="k">$ chemfacts resolve NMP</span>
+<span class="g">pinned via alias: NMP -&gt; 872-50-4  # N-methyl-2-pyrrolidone (solvent)</span>
+<span class="c"># ↑ 第②段命中：13 条注册表里 NMP 钉到 872-50-4，注释即"排除理由"（NMP 不作他解）</span>
+identity  : N-methyl-2-pyrrolidone
+CID       : 13387
+CAS       : 872-50-4
+IUPAC     : 1-methylpyrrolidin-2-one
+Formula   : C5H9NO
+MW        : 99.13 g/mol
+SMILES    : CN1CCCC1=O
+InChIKey  : SECXISVLQFMRJM-UHFFFAOYSA-N
+<span class="g">Accessed  : 2026-10-20 13:30:02Z  source: pubchem</span>
+<span class="c"># 复核：打开 PubChem CID 13387 页，九项身份与上表逐行一致；</span>
+<span class="c">#       MW 99.13 可另按 C5H9NO 手算：5×12.011+9×1.008+14.007+15.999 ≈ 99.13（computed 口径）</span></pre>
+
+<div class="pagebreak"></div>
+<h3>功能二 · lookup：带溯源的数值检索</h3>
+<p>给定标识符与物性 slug，lookup 返回该物性的<b>全部</b>带来源数值（不按状态过滤），每行四要素齐全：数值 | 来源名（参考编号，实测/计算）| 查证日期。使用者自己挑值，工具不替使用者下"哪个对"的结论——判定交给 verify / crosscheck。</p>
+<h4 class="sub">真实输出（NMP 闪点，5 个来源摊开）</h4>
+<pre><span class="k">$ chemfacts lookup NMP flash-point</span>
+<span class="g">204 °F</span>                                                       | OSHA (ref #84, experimental) | 2026-10-20
+<span class="g">204 °F (96 °C) (OPEN CUP)</span>                                    | HSDB (ref #46, experimental) | 2026-10-20
+<span class="g">204 °F (NTP, 1992)</span>                                           | CAMEO (ref #9, experimental) | 2026-10-20
+<span class="g">86 °C c.c.</span>                                                   | ILO ICSC (ref #47, experimental) | 2026-10-20
+<span class="g">96 °C</span>                                                        | N-Methyl-2-pyrrolidone (ref #44, experimental) | 2026-10-20
+<span class="c"># 204 °F ≈ 95.6 °C，与 96 °C 同源同值；86 °C c.c.（闭杯）与 96 °C（开杯口径）差异</span>
+<span class="c"># 属杯型差异——crosscheck 会识别 c.c./OPEN CUP 标记，不计入冲突（见 §1 阈值段）</span>
+<span class="c"># 复核：ref #47 = ILO ICSC 卡片（按 CAS 872-50-4 公开可查）；ref #44 即 PubChem</span>
+<span class="c">#       该化合物参考列表第 44 条——CID 13387 页 → References 可逐条对上</span></pre>
+<div class="note fact"><span class="cap">lookup ≠ verify</span>：lookup 只<b>摊开</b>数值与出处，不做判定；"我记的 96 °C 对不对"用 verify，"这个物性可信吗"用 crosscheck。三者消费同一缓存、同一解析链路，答案不会互相矛盾。</div>
+
+<h3>功能三 · verify：把宣称值对照全部来源数值</h3>
+<p>使用者带一个"宣称值"（文献里的、笔记里的、模型记忆里的）来对照：工具归一化单位后，与缓存中该物性全部带来源数值比对，判定逻辑与容差都在输出里写明（<code>within 2%</code>）。三种判定：</p>
+<table class="plain"><tr><th style="width:20%">判定</th><th style="width:26%">退出码</th><th>含义</th></tr>
+<tr><td class="k">CONFIRMED</td><td>rc 0</td><td>至少 1 个来源数值与宣称值在容差内一致；输出同时给出 <code>match</code> 行</td></tr>
+<tr><td class="k">MISMATCH</td><td>rc 1</td><td>全部来源数值都与宣称值超出容差；输出给出<b>最接近</b>的来源值供对照</td></tr>
+<tr><td class="k">NOT_FOUND</td><td>rc 1</td><td>该物性没有带来源的数值——<b>宣称值保持未核实</b>，工具拒绝填补</td></tr>
+</table>
+<h4 class="sub">三种判定的真实输出（同一快照）</h4>
+<pre><span class="c"># ① CONFIRMED：宣称 99.13（NMP 的 MW）与来源值 99.13 一致（容差 2% 内）</span>
+<span class="k">$ chemfacts verify NMP mw --claim 99.13</span>
+<span class="g">verdict: CONFIRMED</span>
+detail : 1 sourced value(s) agree within 2%
+closest: 99.13 g/mol (PubChem PUG REST (computed from formula))
+match  : 99.13 g/mol (PubChem PUG REST (computed from formula))
+<span class="c"># 注意 kind=computed：MW 是 PubChem 由分子式推的，不是实测；复核方式=按 C5H9NO 手算</span>
+
+<span class="c"># ② MISMATCH：宣称 100 °C（TDI_24 闪点）与全部来源值打架，最接近的是 127 °C</span>
+<span class="k">$ chemfacts verify TDI_24 flash-point --claim "100 C"</span>
+<span class="o">verdict: MISMATCH</span>
+detail : claim 100 C not confirmed; closest sourced value: 127 °C (Toluene-2,4-diisocyanate)
+closest: 127 °C (Toluene-2,4-diisocyanate)
+
+<span class="c"># ③ NOT_FOUND：NMP 的 explosive-limits 无带来源数值——宣称值原样保持未核实</span>
+<span class="k">$ chemfacts verify NMP explosive-limits --claim "0.6-9.0"</span>
+<span class="o">verdict: NOT_FOUND</span>
+detail : no sourced value found for this property - claim stays unverified
+<span class="c"># 设计声明：工具<b>不会</b>把"模型记得的 0.6–9.0%"回填成答案；要核实只能走一手数据库（§4 路径 2）</span></pre>
+
+<h3>功能四 · crosscheck：多源交叉核对（该物性的三态判定）</h3>
+<p>crosscheck 不接收宣称值，直接回答"这个物性的来源数值之间是否一致"，按 §1 的阈值表判三态。<b>CONFLICT 不是错误，是"来源之间真打架"</b>——工具摊开每个值与出处，由使用者判。</p>
+<table class="plain"><tr><th style="width:20%">状态</th><th style="width:26%">退出码</th><th>含义</th></tr>
+<tr><td class="k">VERIFIED</td><td>rc 0</td><td>来源一致（或差异仅杯型口径）</td></tr>
+<tr><td class="k">UNVERIFIED</td><td>rc 0</td><td>无带来源数值——报缺失，不编</td></tr>
+<tr><td class="k">CONFLICT</td><td>rc 2</td><td>超阈值且非杯型差异——如实列值，人工复核</td></tr>
+</table>
+<h4 class="sub">三态各一（真实输出）</h4>
+<pre><span class="c"># VERIFIED：NMP 闪点 5 源一致（杯型差异被识别，不算冲突）</span>
+<span class="k">$ chemfacts crosscheck NMP</span>
+<span class="g">status: VERIFIED</span>
+<span class="g">204 °F</span>                                                       | OSHA (ref #84)
+<span class="g">204 °F (96 °C) (OPEN CUP)</span>                                    | HSDB (ref #46)
+<span class="g">204 °F (NTP, 1992)</span>                                           | CAMEO (ref #9)
+<span class="g">86 °C c.c.</span>                                                   | ILO ICSC (ref #47)
+<span class="g">96 °C</span>                                                        | N-Methyl-2-pyrrolidone (ref #44)
+
+<span class="c"># CONFLICT：TDI_24 闪点 6 源，纯品 127 °C vs 80/20 混合品 270 °F，超阈值且非杯型</span>
+<span class="k">$ chemfacts crosscheck TDI_24</span>
+<span class="o">status: CONFLICT</span>
+<span class="g">127 °C</span>                                                       | Toluene-2,4-diisocyanate (ref #36)
+<span class="g">127 °C c.c.</span>                                                  | ILO ICSC (ref #43)
+<span class="g">260 °F</span>                                                       | NIOSH (ref #73)
+<span class="g">260 °F (127 °C)</span>                                              | HSDB (ref #39)
+<span class="g">270 °F (EPA, 1998)</span>                                           | CAMEO (ref #6)
+<span class="o">270 °F for an 80/20% 2,4/ 2,6 TDI mixture</span>                   | OSHA (ref #59)
+<span class="c"># 判读：#36/#39/#43 指纯 2,4-TDI（127 °C）；#59 明写 80/20 混合品 270 °F——</span>
+<span class="c"># 冲突根源是<b>物质口径</b>（纯品 vs 商品混合），不是数据错误。使用者按自己用的物质选值并记录。</span>
+
+<span class="c"># UNVERIFIED：IBOA 闪点无带来源数值</span>
+<span class="k">$ chemfacts crosscheck IBOA</span>
+status: UNVERIFIED
+<span class="c"># 不输出任何数值、不用模型记忆填；要数值只能走一手数据库（§4 路径 2）</span></pre>
+
+<div class="pagebreak"></div>
+<h3>功能五 · alias：缩写 → 唯一 CAS 钉位注册表</h3>
+<p>注册表是纯 JSON（默认 <code>~/.cache/chemfacts/aliases.json</code>，可用 <code>CHEMFACTS_ALIASES</code> 覆盖），每条 = 缩写 + CAS + <b>排除理由注释</b>（"NOT …"），可 diff、可提交版本控制。示例：H12MDI 钉到氢化 MDI（5124-30-1），明确排除同名的 1,12-二异氰酸酯十二烷（13879-35-1）；IBOA 钉到 C<sub>13</sub>H<sub>20</sub>O<sub>2</sub>（MW 208.30），标注排除了误记的 C<sub>13</sub>H<sub>22</sub>O<sub>2</sub>（210.32）。</p>
+<h4 class="sub">真实输出：13 条钉位 + 增删全流程</h4>
+<pre><span class="k">$ chemfacts alias list</span>
+1,3-PDA    -&gt; 109-76-2  # 1,3-propanediamine (NOT paracetamol)
+BA         -&gt; 141-32-2  # butyl acrylate (C7H12O2)
+BDO        -&gt; 110-63-4  # 1,4-butanediol (NOT 1,2- or 1,3-butanediol)
+DMPA       -&gt; 4767-03-7  # dimethylolpropionic acid ... (NOT 1,4-dimethylpiperazine / TMEDA)
+EDA        -&gt; 107-15-3  # ethylenediamine (NOT EDTA)
+H12MDI     -&gt; 5124-30-1  # hydrogenated MDI / 4,4'-dicyclohexylmethane diisocyanate
+                       #  (NOT 1,12-diisocyanatododecane 13879-35-1)
+HEMA       -&gt; 868-77-9  # 2-hydroxyethyl methacrylate
+HMDI       -&gt; 822-06-0  # hexamethylene diisocyanate (1,6-HMDI, aliphatic linear)
+IBOA       -&gt; 5888-33-5  # isobornyl acrylate C13H20O2, MW 208.30
+                     #  (NOT the C13H22O2 / 210.32 mis-memory)
+IPDI       -&gt; 4098-71-9  # isophorone diisocyanate (aliphatic, cyclic)
+NMP        -&gt; 872-50-4  # N-methyl-2-pyrrolidone (solvent)
+TDI_24     -&gt; 584-84-9  # 2,4-toluene diisocyanate (NOT 2,6-TDI)
+TEA        -&gt; 121-44-8  # triethylamine (base / chain extender)
+
+<span class="c"># 增删全流程（临时条目，用完即删——手册演示专用）</span>
+<span class="k">$ chemfacts alias add XYZ123 100-00-0 --note "manual-doc test pin (temporary)"</span>
+<span class="g">pinned XYZ123 -&gt; 100-00-0 (2026-10-21)</span>
+<span class="k">$ chemfacts alias show XYZ123</span>
+alias     : XYZ123
+pinned to : 100-00-0
+note      : manual-doc test pin (temporary)
+added     : 2026-10-21
+<span class="k">$ chemfacts alias remove XYZ123</span>
+<span class="g">removed XYZ123</span></pre>
+<div class="note fact"><span class="cap">钉位是编辑行为，不是模型行为</span>：注册表只接受人工写入（<code>alias add</code>），工具不自动生成缩写映射。每条的 "NOT …" 注释就是可复核的排除证据——把两个 CAS 丢进 PubChem，分子式/MW 不同，即可看到钉位为什么必要。</div>
+
+<!-- ============ P5 数据层 ============ -->
+<div class="pagebreak"></div>
+<h2 class="data"><span class="n">2</span>数据层与集成：缓存、卡片、MCP <span class="badge data">数据侧</span></h2>
+<p class="lead">数据层承载"复现性"：SQLite 缓存让 TTL 内输出逐字稳定；aliases.json 让钉位可 diff；卡片与 MCP 把带出处的结果送到使用者的知识库与 agent 里。</p>
+
+<h3>功能六 · cache：本地检索库管理</h3>
+<pre><span class="k">$ chemfacts cache show</span>
+identity   14
+value      224
+ref        1227
+<span class="c"># 三张表：identity（化合物身份 14 条）/ value（物性值 224 条，每条挂来源）/ ref（参考条目 1227 条）</span>
+<span class="c"># 复核基准：TTL 内重跑 §1 各命令 → 数值与参考编号逐字不变，仅 accessed 日期可能刷新；</span>
+<span class="c"># cache clear 后重拉 PubChem → 数值/来源应一致（权威源不随快照变），日期更新</span></pre>
+<p>缓存目录默认 <code>~/.cache/chemfacts/</code>（<code>CHEMFACTS_CACHE_DIR</code> 可覆盖）。Docker 部署时以 <code>/data</code> 卷挂载，即多客户端共享的同一份检索库。</p>
+
+<h3>功能七 · card：可审计卡片（Obsidian / JSON）</h3>
+<div class="svgbox">
+<svg class="diagram" viewBox="0 0 720 168" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,Microsoft YaHei,sans-serif">
+  <defs><marker id="a3" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#b45309"/></marker></defs>
+  <rect x="10" y="52" width="210" height="60" rx="8" fill="#b45309"/>
+  <text x="115" y="77" font-size="10.5" font-weight="700" fill="#fff" text-anchor="middle">chemfacts card NMP</text>
+  <text x="115" y="94" font-size="8.5" fill="#f3ddc4" text-anchor="middle">--format obsidian / json</text>
+  <line x1="220" y1="70" x2="300" y2="34" stroke="#b45309" stroke-width="1.6" marker-end="url(#a3)"/>
+  <line x1="220" y1="96" x2="300" y2="132" stroke="#b45309" stroke-width="1.6" marker-end="url(#a3)"/>
+  <rect x="302" y="6" width="390" height="58" rx="8" fill="#fdf4ec" stroke="#b45309" stroke-width="1.4"/>
+  <text x="318" y="28" font-size="10" font-weight="700" fill="#8a3d05">Obsidian 卡片 · vault/chemical-facts/NMP.md</text>
+  <text x="318" y="44" font-size="8.5" fill="#5a6b82">YAML frontmatter（cas/cid/status/accessed/aliases）+ 分组属性</text>
+  <text x="318" y="57" font-size="8.5" fill="#5a6b82">每条属性行 = 数值 — 来源名 (ref #编号, 日期)；--out 直接落库</text>
+  <rect x="302" y="104" width="390" height="58" rx="8" fill="#fdf4ec" stroke="#b45309" stroke-width="1.4"/>
+  <text x="318" y="126" font-size="10" font-weight="700" fill="#8a3d05">JSON · 下游程序 / agent 数据集 / CI 断言</text>
+  <text x="318" y="142" font-size="8.5" fill="#5a6b82">identity + status + properties 嵌套；每个值对象自带 reference_number</text>
+  <text x="318" y="155" font-size="8.5" fill="#5a6b82">kind: experimental / computed 区分实测与计算，机器可断言</text>
+</svg>
+<div class="cap">图 3 · 卡片双出口：同一缓存生成两种格式，Obsidian 面向人（wiki 链接、分组），JSON 面向程序（可断言）</div>
+</div>
+<div class="figexp"><span class="h">图 3 说明 · 卡片为什么必须带 frontmatter 溯源字段</span>
+<ol>
+<li><b>YAML frontmatter</b>：cas / cid / status / accessed / aliases 五项是 Obsidian 侧的"可查询键"——库内 <code>[[]]</code> 双链、Dataview 查询都靠它；其中 <code>status</code> 即三态判定，<code>accessed</code> 即快照日期，缺一个就无法审计。</li>
+<li><b>属性行格式</b>：<code>数值 — 来源名 (ref #编号, 日期)</code>。ref #编号对应 PubChem 该 CID 的参考列表条目号，凭 CID + 编号即可独立回到一手来源（§4 路径 1）。</li>
+<li><b>双出口同源</b>：obsidian 与 json 两种格式由同一份缓存生成，字段一一对应；JSON 里的 <code>kind</code>（experimental / computed）让下游程序能写断言（"MW 必为 computed"），而不是人眼判。</li>
+</ol>
+</div>
+<h4 class="sub">真实输出（NMP 卡片，节选）</h4>
+<pre><span class="c"># --format obsidian（节选；完整卡片含 Flash / Boiling / Melting / Density 四组属性，各 5 条）</span>
+<span class="k">$ chemfacts card NMP --format obsidian</span>
+---
+name: "N-methyl-2-pyrrolidone"
+cas: 872-50-4
+cid: 13387
+status: verified
+accessed: 2026-10-20
+aliases: ["NMP"]
+---
+# N-methyl-2-pyrrolidone
+- CAS: `872-50-4` | PubChem CID: 13387
+- IUPAC: 1-methylpyrrolidin-2-one · 分子式: `C5H9NO` · MW: 99.13 g/mol · SMILES: `CN1CCCC1=O`
+
+## 安全
+### Flash Point
+- 204 °F — OSHA (ref #84, accessed 2026-10-20)
+- 204 °F (96 °C) (OPEN CUP) — HSDB (ref #46, accessed 2026-10-20)
+- 86 °C c.c. — ILO ICSC (ref #47, accessed 2026-10-20)
+- 96 °C — N-Methyl-2-pyrrolidone (ref #44, accessed 2026-10-20)
+## 备注
+- abbreviation pinned via registry: NMP -&gt; 872-50-4 (N-methyl-2-pyrrolidone (solvent))
+- 状态: 已核验 ✓
+<span class="c"># --out 参数可把卡片直接写入 Obsidian 库（如 F:\Hermes\Obsidian lib\chemical-facts\）</span>
+
+<span class="c"># --format json（结构节选；完整输出含 identity/status/properties 三大块）</span>
+<span class="k">$ chemfacts card NMP --format json</span>
+{ "identity": { "cid": 13387, "cas": "872-50-4", "formula": "C5H9NO",
+                "molecular_weight": 99.13, "source": "pubchem",
+                "accessed_at": "2026-10-20 13:30:02Z" },
+  "status": "verified",
+  "properties": { "Flash Point": [
+    { "value": "96 °C", "reference_number": 44, "source_name": "N-Methyl-2-pyrrolidone",
+      "kind": "experimental", "accessed_at": "2026-10-20 13:30:03Z",
+      "url": "https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/13387/JSON?heading=Flash Point" },
+    <span class="c">… 共 5 条，每条自带 url（PUG View 端点）可直接点开复核 …</span> ] } }</pre>
+
+<!-- ============ P6 MCP ============ -->
+<div class="pagebreak"></div>
+<h3>功能八 · mcp：让任意支持 MCP 的 agent 按溯源查化学事实</h3>
+<p>六个能力以 MCP 工具形式暴露（<code>chemfacts-mcp</code> 命令），Claude Code、Codex、ZCode、DeepSeek、Hermes 等任一 MCP 客户端都能调用——agent 拿到的是<b>带溯源的 JSON</b>，而不是模型凭记忆编数。两种传输：<code>stdio</code>（agent 本地拉起）与 <code>streamable-http</code>（Docker，多客户端共享一份检索库）。</p>
+<table class="data"><tr><th style="width:26%">MCP 工具</th><th>参数（对应 CLI）</th></tr>
+<tr><td class="k">chemfacts_resolve</td><td>(identifier) = <code>resolve</code></td></tr>
+<tr><td class="k">chemfacts_lookup</td><td>(identifier, property) = <code>lookup</code></td></tr>
+<tr><td class="k">chemfacts_verify</td><td>(identifier, property, claim) = <code>verify --claim</code></td></tr>
+<tr><td class="k">chemfacts_crosscheck</td><td>(identifier) = <code>crosscheck</code></td></tr>
+<tr><td class="k">chemfacts_card</td><td>(identifier, format) = <code>card</code></td></tr>
+<tr><td class="k">chemfacts_alias</td><td>(action, …) = <code>alias</code>（add / show / list / remove）</td></tr>
+</table>
+<h4 class="sub">真实工具调用返回（MCP 客户端拉回的结构化 JSON）</h4>
+<pre><span class="k">$ chemfacts_verify('NMP', 'flash-point', '96 C')</span>
+{
+  <span class="g">"ok": true, "property": "Flash Point", "claim": "96 C", "verdict": "confirmed"</span>,
+  "detail": "1 sourced value(s) agree within 2%",
+  "closest": { "value": "96 °C", "source": "N-Methyl-2-pyrrolidone",
+               "reference_number": 44, "kind": "experimental",
+               "accessed_at": "2026-10-20 13:30:03Z" }
+}
+<span class="c"># 与 CLI 的 verify 同判同容差（2%）；JSON 版多了 reference_number / kind / accessed_at</span>
+<span class="c"># 三字段——agent 生成任何断言时都能把出处一并写进回答</span></pre>
+<h4 class="sub">注册方式（各 agent 语法略有差异，命令恒为 <code>chemfacts-mcp</code>，默认 stdio）</h4>
+<pre><span class="c"># Claude Code</span>
+<span class="k">claude mcp add chemfacts -- chemfacts-mcp</span>
+<span class="c"># 共享服务（Docker + streamable-HTTP，一个部署给所有 agent）</span>
+<span class="k">docker build -t chemfacts-mcp .</span>
+<span class="k">docker run -d -p 8000:8000 -v chemfacts-data:/data chemfacts-mcp</span>
+<span class="c"># 各 agent 指向 http://&lt;host&gt;:8000/mcp；/data 卷就是共享检索库（facts.db + aliases.json）</span></pre>
+<div class="note data"><span class="cap">已修复（commit 34b4be4）</span>：stdio 模式下启动横幅原先写进 stdout，污染 JSON-RPC 流（客户端日志 <i>"Failed to parse JSONRPC message"</i>）；现仅 http 模式打印横幅，stdio 握手干净。另注：宿机跑全局 HTTP 代理时，访问本地 MCP 服务需设 <code>NO_PROXY=127.0.0.1,localhost</code>。</div>
+
+<!-- ============ P7 工作流 ============ -->
+<div class="pagebreak"></div>
+<h2><span class="n">3</span>常见工作流（照做即可）</h2>
+<p>五个高频场景，每个给命令序列与复核要点；全部输出基于同一缓存快照。</p>
+
+<h3>A · 开反应前查某溶剂的闪点/自燃点（安全）</h3>
+<pre><span class="k">chemfacts resolve NMP</span>            <span class="c"># 先确认身份（钉位 + CID），避免把 NMP 误解析成他物</span>
+<span class="k">chemfacts lookup NMP flash-point</span> <span class="c"># 摊开全部来源闪点（204 °F ≈ 96 °C；86 °C c.c. 为闭杯口径）</span>
+<span class="k">chemfacts verify NMP flash-point --claim "96 C"</span>
+<span class="g">verdict: CONFIRMED</span>  <span class="c"># 笔记里写的 96 °C 得到来源确认（ref #44），可安全引用</span></pre>
+<p class="small">复核要点：CONFIRMED 行带 <code>match</code> 值与来源名；安全操作以<b>最保守口径</b>为准（闭杯 86 °C 低于开杯 96 °C，操作温度控制在 86 °C 以下）。</p>
+
+<h3>B · 核实文献/笔记里的一个数值</h3>
+<pre><span class="k">chemfacts verify NMP mw --claim 99.13</span>
+<span class="g">verdict: CONFIRMED</span>  <span class="c"># 99.13 g/mol（kind=computed，按分子式手算可独立复核）</span>
+<span class="k">chemfacts verify TDI_24 flash-point --claim "100 C"</span>
+<span class="o">verdict: MISMATCH</span>  <span class="c"># 最接近来源值 127 °C（ref #36）——100 °C 查无来源，改引 127 °C 或注明出处</span></pre>
+
+<h3>C · 给新缩写钉位（实验黑话进注册表）</h3>
+<pre><span class="k">chemfacts alias add H12MDI 5124-30-1 --note "hydrogenated MDI (NOT 1,12-diisocyanatododecane)"</span>
+<span class="g">pinned H12MDI -&gt; 5124-30-1 (…)</span>
+<span class="k">chemfacts resolve H12MDI</span>  <span class="c"># 此后所有查询 H12MDI 走同一 CAS；aliases.json 可 diff / 提交版本控制</span></pre>
+
+<h3>D · 批量交叉核对一批物性（脚本可判）</h3>
+<pre><span class="k">for s in NMP TDI_24 IBOA; do chemfacts crosscheck $s; echo "  rc=$?"; done</span>
+<span class="c"># NMP → VERIFIED rc=0；TDI_24 → CONFLICT rc=2（纯品 vs 80/20 混合口径，人工判）；IBOA → UNVERIFIED rc=0（报缺失）</span>
+<span class="c"># 注意：参数错误（typer 用法错误）同样 rc=2，脚本里先判 stderr 是否含 "Usage" 再读判定</span></pre>
+
+<h3>E · 把查证结果固化进 Obsidian 库 / 交给 agent</h3>
+<pre><span class="k">chemfacts card NMP --format obsidian --out "F:\Hermes\Obsidian lib\chemical-facts"</span>
+<span class="c"># 卡片带 YAML frontmatter（cas/cid/status/accessed/aliases），库内可 [[]] 双链、Dataview 查询</span>
+<span class="c"># 或按 §2 功能八注册 MCP 后，agent 直接调 chemfacts_verify 等工具，回答自带溯源 JSON</span></pre>
+
+<!-- ============ P8 边界与复现 ============ -->
+<div class="pagebreak"></div>
+<h2><span class="n">4</span>边界声明与复现指引</h2>
+<p>以下边界为系统自身声明，也应在使用者预期中明确；它们不削弱功能，而是界定每个功能<b>能做什么、不能做什么</b>。</p>
+<table class="plain"><tr><th style="width:26%">边界</th><th>说明</th></tr>
+<tr><td class="k">computed ≠ 实测</td><td>MW 等 <code>kind: computed</code> 值是 PubChem 由分子式推的，不是实验记录；复核方式 = 按分子式手算（如 C<sub>5</sub>H<sub>9</sub>NO ≈ 99.13），而非找实验值。</td></tr>
+<tr><td class="k">CONFLICT ≠ 错误</td><td>是"来源之间真打架"（物质口径 / 测试方法差异，如 TDI_24 纯品 127 °C vs 混合品 270 °F）；工具摊开每个值与 ref #，使用者判，工具不替结论。</td></tr>
+<tr><td class="k">UNVERIFIED / NOT_FOUND = 缺失即缺失</td><td>没有带来源的数据就报缺失，<b>任何宣称值都不因此被视为已核实</b>；要数值只能走一手数据库（ICSC / HSDB / NIOSH 公开页），工具不编。</td></tr>
+<tr><td class="k">TTL 30 天的复现窗口</td><td>TTL 内输出逐字稳定（数值 + 参考编号不变）；<code>cache clear</code> 后重拉，数值/来源应一致、仅日期刷新。跨快照比较数值无意义。</td></tr>
+<tr><td class="k">别名注册表 = 人工策展</td><td>工具不自动生成缩写映射；每条钉位需人工 <code>alias add</code> 并写排除理由。注册表是编辑对象，不是知识源。</td></tr>
+<tr><td class="k">退出码 2 的双重含义</td><td><code>crosscheck</code> CONFLICT 与 typer 用法错误（缺参数）都返回 rc=2；脚本判定时先检查 stderr 是否含 <code>Usage</code>，再读判定状态。</td></tr>
+</table>
+
+<h3>三条独立复核路径（不依赖本工具）</h3>
+<table class="plain"><tr><th style="width:22%">路径</th><th>操作</th></tr>
+<tr><td class="k">1 · PubChem 参考编号</td><td>打开 <code>resolve</code> 给出的 CID 页（NMP=13387）→ Experimental Properties → 该物性下列出各来源；<code>ref #</code> 即该页参考列表条目号，来源名（OSHA/HSDB/ICSC…）对得上即通过。卡片 JSON 的 <code>url</code> 字段（PUG View 端点）可直接点开。</td></tr>
+<tr><td class="k">2 · 一手数据库</td><td>ILO ICSC = 国际劳工组织化学品安全卡片（按 CAS 公开可查）；HSDB（NIH 托管）；NIOSH / OSHA / CAMEO 各有公开页。卡片上的数值应能在这些库找到同一条。</td></tr>
+<tr><td class="k">3 · 缓存重现</td><td><code>cache show</code> 看快照规模（14/224/1227）→ <code>cache clear</code> → 重跑同一命令 → 数值/来源/参考编号应一致，仅 <code>accessed</code> 日期变。一致即"数据可复现"。</td></tr>
+</table>
+
+<h3>复现指引（全部输出可逐步复核）</h3>
+<pre><span class="c"># 环境：Windows · Python 3.11.15 (项目 .venv) · 仓库 CL4Y68/chemfacts @ 34b4be4（v0.3.0）</span>
+<span class="c"># 安装：pip install chemfacts（或 uv tool install chemfacts；开发态 uv run chemfacts）</span>
+<span class="c"># 检索库：~/.cache/chemfacts/facts.db + aliases.json（手册证据快照：14 / 224 / 1227 / 13 条，2026-10-21）</span>
+<span class="c"># 逐条复现：按 §1 各命令重跑，TTL 内输出与手册逐字一致（仅日期行允许刷新）；</span>
+<span class="c"># 判定与退出码口径见 §1 三张表与 §4 边界表。线上文档：cl4y68.github.io/chemfacts</span></pre>
+<footer>本手册：chemfacts v0.3.0 使用手册 · 面向使用者 · 全部功能输出为同一缓存快照（2026-10-21）的真实运行结果，可按第 4 节路径逐步复现 · computed 值与 CONFLICT 状态的含义边界已在 §4 逐项声明</footer>
+
+</body>
+</html>

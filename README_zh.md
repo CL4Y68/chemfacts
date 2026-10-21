@@ -7,6 +7,7 @@ chemfacts 报告的每一个数字都是**有来源、有日期、经交叉核�
 [English](README.md) | [中文文档](README_zh.md)
 
 > **想拿起来就用？** 读[使用手册（中文）](docs/USAGE_zh.md) / [User Manual（EN）](docs/USAGE.md)——功能说明、操作指引、可复核证据（每个示例都是真实可重放的输出）。
+> 带图解、可打印排版的版本：[功能手册（HTML）](docs/USAGE_manual.html)。
 
 ## 一个真实抓错的例子
 
