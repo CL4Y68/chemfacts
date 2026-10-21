@@ -12,6 +12,7 @@ import re
 
 from .aliases import AliasRegistry
 from .cache import FactCache
+from .manuals import ManualRegistry
 from .model import CompoundIdentity, FactCard, PropertyValue, VerifyResult
 from .pubchem import PubChemClient, PubChemError
 from .zhnames import ZhNameRegistry
@@ -66,12 +67,14 @@ class ChemFacts:
         ttl_days: int = 30,
         aliases: AliasRegistry | None = None,
         zhnames: ZhNameRegistry | None = None,
+        manuals: ManualRegistry | None = None,
     ):
         self.client = client or PubChemClient()
         self.cache = cache or FactCache()
         self.ttl_days = ttl_days
         self.aliases = aliases or AliasRegistry()
         self.zhnames = zhnames or ZhNameRegistry()
+        self.manuals = manuals or ManualRegistry()
 
     # -- identity -----------------------------------------------------------
 
@@ -589,6 +592,46 @@ def export_rows(
         try:
             ident = facts.resolve(subject, use_cache=use_cache)
         except PubChemError as e:
+            m = facts.manuals.get(subject) or facts.manuals.by_cas(subject)
+            if m is not None:
+                # User-curated entry for a substance PubChem does not carry
+                # (polymers, mixtures, vendor grades). Never masquerades as a
+                # database value: the row is flagged manual and its source
+                # column says so.
+                key = f"manual:{m.identifier}"
+                if key in rows:
+                    if subject not in rows[key]["inputs"]:
+                        rows[key]["inputs"].append(subject)
+                    continue
+                row = {
+                    "input": subject,
+                    "inputs": [subject],
+                    "unresolved": False,
+                    "manual": True,
+                    "manual_label": m.identifier,
+                    "name_en": m.name_en or m.identifier,
+                    "iupac": "",
+                    "cas": m.cas,
+                    "cid": "",
+                    "formula": m.formula,
+                    "mw": m.mw,
+                    "mw_source": "user-curated entry (manuals.json) — no PubChem record",
+                    "note": m.note,
+                    "added": m.added,
+                    "unresolved_error": str(e),
+                }
+                row["abbrevs"] = []
+                zh = facts.zhnames.find(m.cas or None, None)
+                row["name_zh"] = zh.name_zh if zh else ""
+                row["name_zh_source"] = (zh.source if zh else "")
+                for slug, heading, _label in EXPORT_PROPERTIES:
+                    row[slug] = ""
+                    row[f"{slug}_source"] = ""
+                    row.setdefault("properties", {})[heading] = []
+                rows[key] = row
+                if key not in order:
+                    order.append(key)
+                continue
             key = f"err:{subject}"
             row = {
                 "input": subject,

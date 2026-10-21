@@ -17,6 +17,7 @@ import typer
 
 from . import core, model, pubchem
 from .aliases import AliasRegistry
+from .manuals import ManualRegistry, new_entry
 from .zhnames import ZhNameRegistry
 
 app = typer.Typer(
@@ -31,6 +32,11 @@ alias_app = typer.Typer(help="Manage the abbreviation -> compound registry.")
 app.add_typer(alias_app, name="alias")
 zhname_app = typer.Typer(help="Manage curated Chinese names (manual curation only, never guessed).")
 app.add_typer(zhname_app, name="zhname")
+manual_app = typer.Typer(
+    help="Manage manual entries for substances PubChem does not carry "
+    "(polymers, mixtures, vendor grades)."
+)
+app.add_typer(manual_app, name="manual")
 
 
 def _facts() -> core.ChemFacts:
@@ -204,6 +210,7 @@ def export(
         "缩写", "中文名", "英文名", "IUPAC", "CAS", "CID", "分子式",
         "分子量", "分子量来源",
         "熔点", "熔点来源", "沸点", "沸点来源", "闪点", "闪点来源", "密度", "密度来源",
+        "备注",
     ]
 
     def _vals(r: dict) -> dict[str, str]:
@@ -211,10 +218,13 @@ def export(
             v = {c: "" for c in cols}
             v["英文名"] = f"(unresolved: {r.get('error', '')})"
             return v
+        name_en = r.get("name_en", "")
+        if r.get("manual"):
+            name_en = f"{name_en}（人工条目 · 无 PubChem 记录）"
         return {
             "缩写": ", ".join(r.get("abbrevs", [])),
             "中文名": r.get("name_zh", ""),
-            "英文名": r.get("name_en", ""),
+            "英文名": name_en,
             "IUPAC": r.get("iupac", ""),
             "CAS": r.get("cas", ""),
             "CID": str(r.get("cid", "")),
@@ -229,6 +239,7 @@ def export(
             "闪点来源": r.get("flash-point_source", ""),
             "密度": r.get("density", ""),
             "密度来源": r.get("density_source", ""),
+            "备注": r.get("note", ""),
         }
 
     if fmt == "json":
@@ -394,6 +405,65 @@ def zhname_remove(identifier: str = typer.Argument(..., help="compound identifie
         except pubchem.PubChemError:
             pass
     typer.echo(f"removed {identifier.upper()}" if ok else f"{identifier.upper()} not in curation")
+    raise typer.Exit(0 if ok else 1)
+
+
+def _manuals() -> ManualRegistry:
+    return ManualRegistry()
+
+
+@manual_app.command("add")
+def manual_add(
+    identifier: str = typer.Argument(
+        ..., help="your label, e.g. PTMG-2000 or TDI_8020 (kept as-is, uppercase)"
+    ),
+    name_en: str = typer.Option("", "--name-en", help="English / trade name"),
+    cas: str = typer.Option("", "--cas", help="best-known CAS if one exists"),
+    formula: str = typer.Option("", "--formula", help="formula or repeat unit, verbatim"),
+    mw: str = typer.Option("", "--mw", help="MW as recorded, verbatim (e.g. '2000 (COA)')"),
+    note: str = typer.Option(
+        "", "--note", help="where these values were verified (supplier COA / SDS / internal spec)"
+    ),
+) -> None:
+    """Record a user-verified entry for a substance PubChem does not carry.
+
+    Values are stored verbatim and displayed only with a
+    'user-curated entry (manuals.json)' marker — never as database values.
+    """
+    entry = new_entry(identifier, name_en, cas, formula, mw, note)
+    _manuals().add(entry)
+    src = note or "your source"
+    typer.echo(f"recorded {entry.identifier} ({entry.added}); verify values against {src}")
+
+
+@manual_app.command("list")
+def manual_list() -> None:
+    entries = _manuals().list()
+    if not entries:
+        typer.echo("(no manual entries)")
+        return
+    for e in entries:
+        bits = [b for b in (e.name_en, f"CAS {e.cas}" if e.cas else "", e.mw) if b]
+        extra = " · ".join(bits)
+        typer.echo(f"{e.identifier:14} {extra}  # 出处: {e.note or '(none)'}")
+
+
+@manual_app.command("show")
+def manual_show(identifier: str = typer.Argument(..., help="manual-entry label or CAS")) -> None:
+    reg = _manuals()
+    e = reg.get(identifier) or reg.by_cas(identifier)
+    if e is None:
+        typer.echo(f"no manual entry for {identifier.upper()}")
+        raise typer.Exit(1)
+    for k in ("identifier", "name_en", "cas", "formula", "mw", "note", "added"):
+        typer.echo(f"{k:10}: {getattr(e, k) or '(none)'}")
+
+
+@manual_app.command("remove")
+def manual_remove(identifier: str = typer.Argument(..., help="manual-entry label")) -> None:
+    ok = _manuals().remove(identifier)
+    label = identifier.upper()
+    typer.echo(f"removed {label}" if ok else f"{label} not in manual entries")
     raise typer.Exit(0 if ok else 1)
 
 

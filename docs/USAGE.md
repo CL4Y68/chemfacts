@@ -126,7 +126,7 @@ differences are recognised and do not count as conflicts.
 | `verify` | 0 = CONFIRMED, 1 = MISMATCH / NOT_FOUND |
 | `crosscheck` | 0 = VERIFIED / UNVERIFIED, 2 = CONFLICT |
 | `lookup` / `card` / `alias` / `cache` / `export` | 0 = success |
-| `zhname` | 0 = success (entry found/changed), 1 = not curated |
+| `zhname` / `manual` | 0 = success (entry found/changed), 1 = not curated |
 
 ---
 
@@ -438,6 +438,36 @@ docker run -d -p 8000:8000 -v chemfacts-data:/data chemfacts-mcp
 
 **Local-proxy gotcha:** if the host runs a global HTTP proxy, set
 `NO_PROXY=127.0.0.1,localhost` so agent↔server localhost traffic isn't routed through it.
+
+### 4.11 `manual` — record substances PubChem does not carry (polymers, blends, vendor grades)
+
+PubChem has no single-compound record for polymers (PTMEG/PTMG-2000), mixtures
+(TDI 80/20) or vendor grades — they come back `(unresolved: …)` from every query,
+which is the correct, honest answer. If you have the values from a primary document
+(supplier COA, SDS, internal spec sheet), record them once and the `export` table
+picks them up:
+
+```
+$ chemfacts manual add PTMG-2000 \
+    --name-en "Polytetramethylene glycol (PTMEG-2000)" \
+    --cas "25268-40-0" --mw "2000 (COA)" --note "supplier COA, lot 2026-08"
+recorded PTMG-2000 (2026-10-21); verify values against supplier COA, lot 2026-08
+
+$ chemfacts manual list
+PTMG-2000      Polytetramethylene glycol (PTMEG-2000) · CAS 25268-40-0 · 2000 (COA)  # 出处: supplier COA, lot 2026-08
+```
+
+Three rules keep this honest:
+
+- **Verbatim, user-owned values.** Entries are stored exactly as recorded
+  (`manuals.json`, default `~/.cache/chemfacts/manuals.json`, override with
+  `CHEMFACTS_MANUALS`); the tool never fills in, rounds or "fixes" anything.
+- **Always marked.** In `export` output the English-name cell carries
+  `（人工条目 · 无 PubChem 记录）` and the MW source says
+  `user-curated entry (manuals.json) — no PubChem record`; property cells stay
+  empty unless you recorded them. A manual row can never be read back as a database value.
+- **No entry, no row.** A subject with neither a PubChem record nor a manual entry
+  still shows as `(unresolved: …)`.
 
 ---
 

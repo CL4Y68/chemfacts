@@ -1,0 +1,38 @@
+# Trusted publishing: no token is stored anywhere.
+#
+# One-time setup (pypi.org side, done by the project owner):
+#   1. Create a free pypi.org account and the "chemfacts" project
+#      (the project page must exist before the first upload).
+#   2. Project -> "Publishing" -> "Register a trusted publisher":
+#        Publisher:      CL4Y68/chemfacts
+#        Environment:    github-action (default, "All environments")
+#        Workflow file:  .github/workflows/publish.yml
+#        Audience:       https://pypi.org/project/chemfacts/
+#   3. Push a tag (e.g. `git tag v0.5.0 && git push origin v0.5.0`):
+#      this workflow builds sdist+wheel and uploads via OIDC.
+name: publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # OIDC: the workflow authenticates to PyPI without a token
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Build sdist + wheel
+        run: uv build
+
+      # Uses PyPI trusted publishing (OIDC) — no secret needed on GitHub.
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

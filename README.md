@@ -270,7 +270,8 @@ flowchart LR
 | `chemfacts verify <id> <property> --claim <value>` | Hold a claimed value against all sourced values → `confirmed` / `mismatch` (closest value + its source) / `not_found` |
 | `chemfacts crosscheck <id> <property>` | Compare sourced values; flag real conflicts, tolerate closed-cup/open-cup differences |
 | `chemfacts export <ids…> [--all-aliases] [--format csv\|md\|json] [--out file] [--fresh]` | The correspondence table: abbreviation → Chinese name → English name → IUPAC → CAS → CID → formula → MW → mp / bp / flash point / density, every value sourced. Online-first: an empty or stale local DB is no obstacle |
-| `chemfacts zhname add\|list\|show\|remove` | Curate Chinese names (PubChem has none; this tool never invents any) — `zhnames.json`, keyed by CAS, user-verified source recorded |
+| `chemfacts zhname add\|list\|show\|remove` | Curate Chinese names (PubChem has none; the tool never invents any). Stored in `zhnames.json`, keyed by CAS, with the verification source |
+| `chemfacts manual add\|list\|show\|remove` | Record user-verified entries for substances PubChem does not carry (polymers, blends, vendor grades). Stored verbatim in `manuals.json`; export rows from it are always marked "人工条目 · 无 PubChem 记录" |
 | `chemfacts alias add\|list\|show\|remove` | Manage the abbreviation → compound registry |
 | `chemfacts cache clear\|show` | Manage the local SQLite fact cache |
 
@@ -393,19 +394,23 @@ re-fetched — the provenance is never lost, only refreshed.
 | `CHEMFACTS_CACHE_DIR` | `~/.cache/chemfacts` | fact cache DB location |
 | `CHEMFACTS_ALIASES` | `<cache dir>/aliases.json` | abbreviation registry file |
 | `CHEMFACTS_ZHNAMES` | `<cache dir>/zhnames.json` | Chinese-name curation file |
+| `CHEMFACTS_MANUALS` | `<cache dir>/manuals.json` | manual entries for substances PubChem does not carry |
 
 ## Sources
 
-v0.4 uses **PubChem** (PUG REST for identity, PUG View for experimental property
+v0.5 uses **PubChem** (PUG REST for identity, PUG View for experimental property
 values aggregated from HSDB, ILO ICSC, EPA, CAMEO, NTP, …). Chinese names come from
 your `zhnames.json` curation (PubChem has none; nothing is ever translated or
-guessed). Second-source cross-checking (NIST WebBook, GESTIS/ECHA) is on the roadmap.
+guessed), and substances PubChem does not carry (polymers, blends, vendor grades)
+can be recorded verbatim in `manuals.json` — always visibly marked as user-curated.
+Second-source cross-checking (NIST WebBook, GESTIS/ECHA) is on the roadmap.
 
 ## Roadmap
 
 - [x] PubChem identity + experimental properties, card / verify / crosscheck, SQLite cache
 - [x] Abbreviation registry: pin ambiguous names to one compound (JSON, user-editable)
 - [x] Chinese-name curation (`zhname`) + correspondence-table export (`export`), online-first
+- [x] Manual entries (`manual`) for substances PubChem does not carry — verbatim, always marked
 - [ ] NIST WebBook as a second source (phase-transition data)
 - [ ] GESTIS / ECHA / vendor SDS for authoritative flash points
 - [ ] `batch` mode: verify a whole reagent list for a recipe in one pass

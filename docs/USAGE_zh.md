@@ -117,7 +117,7 @@ docker run -d -p 8000:8000 -v chemfacts-data:/data chemfacts-mcp
 | `verify` | 0=CONFIRMED，1=MISMATCH / NOT_FOUND |
 | `crosscheck` | 0=VERIFIED / UNVERIFIED，2=CONFLICT |
 | `lookup` / `card` / `alias` / `cache` / `export` | 0=成功 |
-| `zhname` | 0=成功（条目命中/变更），1=未录入 |
+| `zhname` / `manual` | 0=成功（条目命中/变更），1=未录入 |
 
 ---
 
@@ -439,6 +439,32 @@ docker run -d -p 8000:8000 -v chemfacts-data:/data chemfacts-mcp
 
 **注意（本机代理坑）：** 若宿机跑了全局 HTTP 代理，访问本地 MCP 服务要设
 `NO_PROXY=127.0.0.1,localhost`，否则 agent↔server 的 localhost 流量会被绕进代理。
+
+### 4.11 `manual` — 登记 PubChem 没有的物质（聚合物 / 混合物 / 商品级）
+
+PubChem 没有聚合物（PTMEG/PTMG-2000）、混合物（TDI 80/20）、商品级的单一化合物记录——
+查它们一律返回 `(unresolved: …)`，这是正确且诚实的回答。若你有**一手文件**
+（供应商 COA、SDS、内部规格单）上的数值，登记一次，`export` 总表就会带上：
+
+```
+$ chemfacts manual add PTMG-2000 \
+    --name-en "Polytetramethylene glycol (PTMEG-2000)" \
+    --cas "25268-40-0" --mw "2000 (COA)" --note "supplier COA, lot 2026-08"
+recorded PTMG-2000 (2026-10-21); verify values against supplier COA, lot 2026-08
+
+$ chemfacts manual list
+PTMG-2000      Polytetramethylene glycol (PTMEG-2000) · CAS 25268-40-0 · 2000 (COA)  # 出处: supplier COA, lot 2026-08
+```
+
+三条纪律保证它不污染"不编造"原则：
+
+- **原样存储，值归你**：`manuals.json`（默认 `~/.cache/chemfacts/manuals.json`，
+  `CHEMFACTS_MANUALS` 可覆盖）按你写的内容逐字存放，工具不补、不改、不取整。
+- **永远带标记**：export 里该行英文名格加 `（人工条目 · 无 PubChem 记录）`，
+  分子量来源列写 `user-curated entry (manuals.json) — no PubChem record`；
+  物性格没录就是空。手工行永远不能被读回成"数据库值"。
+- **没登记就没有**：既无 PubChem 记录、也无手工条目的物质，依旧显示
+  `(unresolved: …)`。
 
 ---
 

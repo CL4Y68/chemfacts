@@ -244,6 +244,7 @@ flowchart LR
 | `chemfacts crosscheck <id> <property>` | 交叉核对来源值；标记真冲突，容忍闭杯/开杯差异 |
 | `chemfacts export <ids…> [--all-aliases] [--format csv\|md\|json] [--out 文件] [--fresh]` | 总对应表：缩写 → 中文名 → 英文名 → IUPAC → CAS → CID → 分子式 → MW → 熔/沸/闪点/密度，每个物性值带来源。联网优先：本地库空了/过期了照样出表 |
 | `chemfacts zhname add\|list\|show\|remove` | 维护中文名（PubChem 没有中文名，本工具也绝不编造）——`zhnames.json`，按 CAS 落键，记录核实出处 |
+| `chemfacts manual add\|list\|show\|remove` | 登记 PubChem 没有的物质（聚合物/混合物/商品级）：值按你写的内容原样存 `manuals.json`，export 总表里该行必带"（人工条目 · 无 PubChem 记录）"标记 |
 | `chemfacts alias add\|list\|show\|remove` | 管理缩写 → 物质注册表 |
 | `chemfacts cache clear\|show` | 管理本地 SQLite 事实缓存 |
 
@@ -360,18 +361,22 @@ rows = export_rows(f, ["IPDI", "NMP"])        # -> 总对应表行（联网优�
 | `CHEMFACTS_CACHE_DIR` | `~/.cache/chemfacts` | 事实缓存目录 |
 | `CHEMFACTS_ALIASES` | `<缓存目录>/aliases.json` | 缩写注册表文件 |
 | `CHEMFACTS_ZHNAMES` | `<缓存目录>/zhnames.json` | 中文名人工库 |
+| `CHEMFACTS_MANUALS` | `<缓存目录>/manuals.json` | PubChem 没有的物质的手工条目 |
 
 ## 数据来源
 
-v0.4 使用 **PubChem**（PUG REST 查身份，PUG View 查实测物性——聚合自 HSDB、ILO ICSC、
+v0.5 使用 **PubChem**（PUG REST 查身份，PUG View 查实测物性——聚合自 HSDB、ILO ICSC、
 EPA、CAMEO、NTP 等）。中文名来自你的 `zhnames.json` 人工库（PubChem 没有，也绝不
-翻译/猜测）。第二来源交叉核对（NIST WebBook、GESTIS/ECHA）在路线图中。
+翻译/猜测）；PubChem 没有的物质（聚合物、混合物、商品级）可以按你核实的一手值
+原样记入 `manuals.json`，任何出口都带"人工条目"标记。第二来源交叉核对
+（NIST WebBook、GESTIS/ECHA）在路线图中。
 
 ## 路线图
 
 - [x] PubChem 身份 + 实测物性，card / verify / crosscheck，SQLite 缓存
 - [x] 缩写注册表：把含糊名称钉到一个物质（JSON，用户可编辑）
 - [x] 中文名人工库（`zhname`）+ 总对应表导出（`export`），联网优先
+- [x] 手工条目（`manual`）：PubChem 没有的物质按你核实的一手值原样入库，出口必带标记
 - [ ] NIST WebBook 作为第二来源（相变数据）
 - [ ] GESTIS / ECHA / 厂商 SDS 的权威闪点
 - [ ] `batch` 模式：一次核完配方里的全部试剂

@@ -466,6 +466,15 @@ curated 109-99-9 -> 四氢呋喃 (2026-10-21) [resolved to Tetrahydrofuran (109-
 <span class="k">$ chemfacts zhname list</span>
 109-99-9           四氢呋喃  # 来源: 通用名 (common name)</pre>
 <div class="note data"><span class="cap">中文名的落点</span>：录入后自动出现在 <code>resolve</code> 输出、事实卡片（Obsidian/MD/JSON）、MCP 工具返回（<code>name_zh</code>、<code>name_zh_source</code>、<code>registered_abbrevs</code>）与 <code>export</code> 总表的中文名列。没录入 = 空格，缺就是缺，不猜。</div>
+<h3>功能十一 · manual：登记 PubChem 没有的物质（聚合物 / 混合物 / 商品级）</h3>
+<p>PubChem 没有聚合物（PTMEG/PTMG-2000）、混合物（TDI 80/20）、商品级的单一化合物记录，查它们一律 <code>(unresolved: …)</code>。若你有<b>一手文件</b>（供应商 COA / SDS / 内部规格单）上的数值，登记一次，<code>export</code> 总表就带上该行。三条纪律：<b>① 原样存储，值归你</b>——<code>manuals.json</code> 按你写的逐字存，工具不补不改；<b>② 永远带标记</b>——总表该行英文名列加"（人工条目 · 无 PubChem 记录）"，分子量来源列注明出处，物性格没录就是空；<b>③ 没登记就没有</b>——手工行永远不能被读回成"数据库值"。</p>
+<pre><span class="k">$ chemfacts manual add PTMG-2000 \
+    --name-en "Polytetramethylene glycol (PTMEG-2000)" \
+    --cas "25268-40-0" --mw "2000 (COA)" --note "supplier COA, lot 2026-08"</span>
+recorded PTMG-2000 (2026-10-21); verify values against supplier COA, lot 2026-08
+<span class="k">$ chemfacts manual list</span>
+PTMG-2000      Polytetramethylene glycol (PTMEG-2000) · CAS 25268-40-0 · 2000 (COA)  # 出处: supplier COA, lot 2026-08
+<span class="c"># export PTMG-2000 → 总表多出该物质一行，英文名列带"（人工条目 · 无 PubChem 记录）"，备注列带 COA 出处</span></pre>
 
 <!-- ============ P7 工作流 ============ -->
 <div class="pagebreak"></div>
@@ -517,6 +526,7 @@ curated 109-99-9 -> 四氢呋喃 (2026-10-21) [resolved to Tetrahydrofuran (109-
 <tr><td class="k">TTL 30 天的复现窗口</td><td>TTL 内输出逐字稳定（数值 + 参考编号不变）；<code>cache clear</code> 后重拉，数值/来源应一致、仅日期刷新。跨快照比较数值无意义。</td></tr>
 <tr><td class="k">别名注册表 = 人工策展</td><td>工具不自动生成缩写映射；每条钉位需人工 <code>alias add</code> 并写排除理由。注册表是编辑对象，不是知识源。</td></tr>
 <tr><td class="k">中文名列 = 人工录入（fail-closed）</td><td>PubChem 不提供中文名，工具也<b>绝不翻译/猜测</b>；<code>zhnames.json</code> 里没录入的物质，export 表中文名列就是空格。要填 = 你核实后 <code>zhname add</code>（带出处）。</td></tr>
+<tr><td class="k">手工条目 = 你的值，永远带标记</td><td><code>manuals.json</code> 只接收<b>你从一手文件（COA/SDS/规格单）抄来</b>的值，逐字存储、不改不补；export 中该行英文名列必带"（人工条目 · 无 PubChem 记录）"，物性格未录即空——任何出口都不会把手工值显示成数据库值。</td></tr>
 <tr><td class="k">退出码 2 的双重含义</td><td><code>crosscheck</code> CONFLICT 与 typer 用法错误（缺参数）都返回 rc=2；脚本判定时先检查 stderr 是否含 <code>Usage</code>，再读判定状态。</td></tr>
 </table>
 
