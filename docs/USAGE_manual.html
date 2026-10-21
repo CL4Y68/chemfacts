@@ -83,17 +83,17 @@ h4.sub { font-size:10pt; color:#2b3f5c; margin:8pt 0 3pt; }
 </div>
 
 <div class="svgbox">
-<svg class="diagram" viewBox="0 0 720 190" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,Microsoft YaHei,sans-serif">
+<svg class="diagram" viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,Microsoft YaHei,sans-serif">
   <defs>
     <marker id="a1" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#14233d"/></marker>
   </defs>
-  <rect x="10" y="28" width="180" height="104" rx="10" fill="#f5f8fc" stroke="#4a72c4" stroke-width="1.5"/>
+  <rect x="10" y="28" width="180" height="116" rx="10" fill="#f5f8fc" stroke="#4a72c4" stroke-width="1.5"/>
   <text x="26" y="52" font-size="13" font-weight="700" fill="#14233d">查询层</text>
   <text x="26" y="72" font-size="9.5" fill="#3a4a5f">CLI · 8 命令（typer）</text>
   <text x="26" y="88" font-size="9.5" fill="#3a4a5f">MCP · 6 工具（stdio/http）</text>
   <text x="26" y="104" font-size="9.5" fill="#3a4a5f">--json 机器可读输出</text>
   <text x="26" y="120" font-size="8" fill="#74829a">使用者 / agent 入口</text>
-  <rect x="270" y="28" width="200" height="104" rx="10" fill="#eef7f4" stroke="#0e7c66" stroke-width="1.5"/>
+  <rect x="270" y="28" width="200" height="116" rx="10" fill="#eef7f4" stroke="#0e7c66" stroke-width="1.5"/>
   <text x="286" y="52" font-size="13" font-weight="700" fill="#0a5c4d">查证核心</text>
   <g font-size="9.5" fill="#0a5c4d" font-weight="600">
     <text x="286" y="74">resolve · 身份核验（别名钉位 → CID）</text>
@@ -101,18 +101,18 @@ h4.sub { font-size:10pt; color:#2b3f5c; margin:8pt 0 3pt; }
     <text x="286" y="106">verify / crosscheck · 判定</text>
     <text x="286" y="122">card / alias · 卡片 / 钉位</text>
   </g>
-  <rect x="530" y="28" width="180" height="104" rx="10" fill="#fdf4ec" stroke="#b45309" stroke-width="1.5"/>
+  <rect x="530" y="28" width="180" height="116" rx="10" fill="#fdf4ec" stroke="#b45309" stroke-width="1.5"/>
   <text x="546" y="52" font-size="13" font-weight="700" fill="#8a3d05">数据层</text>
   <text x="546" y="72" font-size="9.5" fill="#3a4a5f">SQLite 缓存（TTL 30d）</text>
   <text x="546" y="88" font-size="9.5" fill="#3a4a5f">aliases.json（手工策展）</text>
   <text x="546" y="104" font-size="9.5" fill="#3a4a5f">PubChem REST（权威源）</text>
   <text x="546" y="120" font-size="8" fill="#74829a">facts.db · 14 身份 / 224 值 / 1227 参考</text>
-  <line x1="190" y1="80" x2="266" y2="80" stroke="#14233d" stroke-width="1.8" marker-end="url(#a1)"/>
-  <text x="228" y="72" font-size="8.5" fill="#5a6b82" text-anchor="middle">解析+钉位</text>
-  <line x1="470" y1="80" x2="526" y2="80" stroke="#14233d" stroke-width="1.8" marker-end="url(#a1)"/>
-  <text x="498" y="72" font-size="8.5" fill="#5a6b82" text-anchor="middle">读/写</text>
-  <text x="360" y="164" font-size="9.5" font-weight="700" fill="#14233d" text-anchor="middle">每个数值携带四要素：来源名 · PubChem 参考编号 · 查证日期 · 实测/计算</text>
-  <text x="360" y="182" font-size="8" fill="#74829a" text-anchor="middle">溯源放在核心层而非展示层——任何出口（CLI 表格 / JSON / 卡片 / MCP）都带同一套出处</text>
+  <line x1="190" y1="86" x2="266" y2="86" stroke="#14233d" stroke-width="1.8" marker-end="url(#a1)"/>
+  <text x="228" y="78" font-size="8.5" fill="#5a6b82" text-anchor="middle">解析+钉位</text>
+  <line x1="470" y1="86" x2="526" y2="86" stroke="#14233d" stroke-width="1.8" marker-end="url(#a1)"/>
+  <text x="498" y="78" font-size="8.5" fill="#5a6b82" text-anchor="middle">读/写</text>
+  <text x="360" y="168" font-size="9.5" font-weight="700" fill="#14233d" text-anchor="middle">每个数值携带四要素：来源名 · PubChem 参考编号 · 查证日期 · 实测/计算</text>
+  <text x="360" y="190" font-size="8" fill="#74829a" text-anchor="middle">溯源放在核心层而非展示层——任何出口（CLI 表格 / JSON / 卡片 / MCP）都带同一套出处</text>
 </svg>
 <div class="cap">图 1 · 三层架构：查询层与数据层之间的"查证核心"是唯一事实来源，六能力共享同一条解析链路</div>
 </div>
