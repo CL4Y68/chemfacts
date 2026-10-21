@@ -216,7 +216,7 @@ density ±0.01 g/cm³; everything else uses a 10 % relative threshold.
 ```mermaid
 %%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
 flowchart LR
-    CLI["cli.py · typer<br/>resolve · lookup · verify · crosscheck · card<br/>cache · alias · mcp"]:::mcp
+    CLI["cli.py · typer<br/>resolve · lookup · verify · crosscheck · card<br/>cache · alias · zhname · export · mcp"]:::mcp
     subgraph CORE["core.py — ChemFacts facade"]
         direction TB
         R["resolve()<br/>alias pin → identity → cache"]:::proc
@@ -237,9 +237,11 @@ flowchart LR
     CORE --> P["pubchem.py<br/>PUG REST + PUG View client<br/>throttled · retried · 4xx → PubChemError"]:::proc
     CORE --> CA["cache.py<br/>SQLite: identity / value / ref<br/>TTL · provenance kept on reload"]:::store
     CORE --> AL["aliases.py<br/>JSON registry<br/>abbreviation → CAS + note"]:::store
+    CORE --> ZH["zhnames.py<br/>JSON curation<br/>CAS → 中文名 + source"]:::store
     P --> PC[("PubChem API")]:::ext
     CA --> DB[("~/.cache/chemfacts/facts.db")]:::ext
     AL --> J[("~/.cache/chemfacts/aliases.json")]:::ext
+    ZH --> J2[("~/.cache/chemfacts/zhnames.json")]:::ext
     classDef io      fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81
     classDef proc    fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
     classDef decide  fill:#fef3c7,stroke:#d97706,color:#78350f
@@ -261,6 +263,8 @@ flowchart LR
 | `chemfacts card <id> [--format md\|obsidian\|json] [--out file]` | An auditable fact card, ready for a lab notebook, manuscript, or Obsidian vault |
 | `chemfacts verify <id> <property> --claim <value>` | Hold a claimed value against all sourced values → `confirmed` / `mismatch` (closest value + its source) / `not_found` |
 | `chemfacts crosscheck <id> <property>` | Compare sourced values; flag real conflicts, tolerate closed-cup/open-cup differences |
+| `chemfacts export <ids…> [--all-aliases] [--format csv\|md\|json] [--out file] [--fresh]` | The correspondence table: abbreviation → Chinese name → English name → IUPAC → CAS → CID → formula → MW → mp / bp / flash point / density, every value sourced. Online-first: an empty or stale local DB is no obstacle |
+| `chemfacts zhname add\|list\|show\|remove` | Curate Chinese names (PubChem has none; this tool never invents any) — `zhnames.json`, keyed by CAS, user-verified source recorded |
 | `chemfacts alias add\|list\|show\|remove` | Manage the abbreviation → compound registry |
 | `chemfacts cache clear\|show` | Manage the local SQLite fact cache |
 
@@ -306,6 +310,15 @@ verdict: CONFIRMED
 $ chemfacts verify NMP mw --claim "110.0"
 verdict: MISMATCH
 detail : claim 110.0 not confirmed; closest sourced value: 99.13 g/mol (PubChem PUG REST)
+
+# curate a Chinese name (PubChem has none; recorded with your verification source)
+$ chemfacts zhname add THF 四氢呋喃 --source "通用名 (common name)"
+curated 109-99-9 -> 四氢呋喃 (2026-10-21) [resolved to Tetrahydrofuran (109-99-9)]
+
+# the correspondence table: abbreviation | Chinese | English | IUPAC | CAS | CID | formula | MW | mp | bp | flash | density
+$ chemfacts export tetrahydrofuran --format md
+| 缩写 | 中文名 | 英文名 | IUPAC | CAS | CID | 分子式 | 分子量 | … | 熔点 | … |
+|  | 四氢呋喃 | Tetrahydrofuran | oxolane | 109-99-9 | 8028 | C4H8O | 72.11 g/mol | … | -108.3 °C ; … | … |
 ```
 
 ## Use from any agent: MCP server
@@ -351,14 +364,15 @@ The `/data` volume **is the shared retrieval database**:
 ## Library
 
 ```python
-from chemfacts import ChemFacts, card_to_markdown
+from chemfacts import ChemFacts, card_to_markdown, export_rows
 
 f = ChemFacts()
 ident = f.resolve("IPDI")                       # -> CompoundIdentity (CID, CAS, formula, MW, ...)
-vals = f.lookup("IPDI", "flash-point")          # -> [PropertyValue, ...] each with source + date
-res = f.verify("IPDI", "mw", "222.28")          # -> VerifyResult(verdict="confirmed", ...)
-card = f.build_card("IPDI")                     # -> FactCard
+vals = f.lookup("IPDI", "flash-point")         # -> [PropertyValue, ...] each with source + date
+res = f.verify("IPDI", "mw", "222.28")         # -> VerifyResult(verdict="confirmed", ...)
+card = f.build_card("IPDI")                    # -> FactCard (incl. name_zh / registered_abbrevs when curated)
 print(card_to_markdown(card, obsidian=True))
+rows = export_rows(f, ["IPDI", "NMP"])         # -> correspondence-table rows (online-first)
 ```
 
 ## Caching & provenance
@@ -372,17 +386,20 @@ re-fetched — the provenance is never lost, only refreshed.
 |---|---|---|
 | `CHEMFACTS_CACHE_DIR` | `~/.cache/chemfacts` | fact cache DB location |
 | `CHEMFACTS_ALIASES` | `<cache dir>/aliases.json` | abbreviation registry file |
+| `CHEMFACTS_ZHNAMES` | `<cache dir>/zhnames.json` | Chinese-name curation file |
 
 ## Sources
 
-v0.2 uses **PubChem** (PUG REST for identity, PUG View for experimental property
-values aggregated from HSDB, ILO ICSC, EPA, CAMEO, NTP, …). Second-source
-cross-checking (NIST WebBook, GESTIS/ECHA) is on the roadmap.
+v0.4 uses **PubChem** (PUG REST for identity, PUG View for experimental property
+values aggregated from HSDB, ILO ICSC, EPA, CAMEO, NTP, …). Chinese names come from
+your `zhnames.json` curation (PubChem has none; nothing is ever translated or
+guessed). Second-source cross-checking (NIST WebBook, GESTIS/ECHA) is on the roadmap.
 
 ## Roadmap
 
 - [x] PubChem identity + experimental properties, card / verify / crosscheck, SQLite cache
 - [x] Abbreviation registry: pin ambiguous names to one compound (JSON, user-editable)
+- [x] Chinese-name curation (`zhname`) + correspondence-table export (`export`), online-first
 - [ ] NIST WebBook as a second source (phase-transition data)
 - [ ] GESTIS / ECHA / vendor SDS for authoritative flash points
 - [ ] `batch` mode: verify a whole reagent list for a recipe in one pass

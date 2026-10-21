@@ -193,7 +193,7 @@ flowchart LR
 ```mermaid
 %%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
 flowchart LR
-    CLI["cli.py · typer<br/>resolve · lookup · verify · crosscheck · card<br/>cache · alias · mcp"]:::mcp
+    CLI["cli.py · typer<br/>resolve · lookup · verify · crosscheck · card<br/>cache · alias · zhname · export · mcp"]:::mcp
     subgraph CORE["core.py — ChemFacts 门面"]
         direction TB
         R["resolve()<br/>缩写钉位 → 身份 → 缓存"]:::proc
@@ -214,9 +214,11 @@ flowchart LR
     CORE --> P["pubchem.py<br/>PUG REST + PUG View 客户端<br/>限流 · 重试 · 4xx → PubChemError"]:::proc
     CORE --> CA["cache.py<br/>SQLite: identity / value / ref<br/>TTL · 重载保留溯源"]:::store
     CORE --> AL["aliases.py<br/>JSON 注册表<br/>缩写 → CAS + 注释"]:::store
+    CORE --> ZH["zhnames.py<br/>JSON 人工库<br/>CAS → 中文名 + 核实出处"]:::store
     P --> PC[("PubChem API")]:::ext
     CA --> DB[("~/.cache/chemfacts/facts.db")]:::ext
     AL --> J[("~/.cache/chemfacts/aliases.json")]:::ext
+    ZH --> J2[("~/.cache/chemfacts/zhnames.json")]:::ext
     classDef io      fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81
     classDef proc    fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
     classDef decide  fill:#fef3c7,stroke:#d97706,color:#78350f
@@ -238,6 +240,8 @@ flowchart LR
 | `chemfacts card <id> [--format md\|obsidian\|json] [--out 文件]` | 生成可审计的事实卡片，可直接进实验记录本、论文或 Obsidian 库 |
 | `chemfacts verify <id> <property> --claim <值>` | 本项目的核心：把声称值对照全部来源值 → `confirmed` / `mismatch`（附最接近值+来源）/ `not_found` |
 | `chemfacts crosscheck <id> <property>` | 交叉核对来源值；标记真冲突，容忍闭杯/开杯差异 |
+| `chemfacts export <ids…> [--all-aliases] [--format csv\|md\|json] [--out 文件] [--fresh]` | 总对应表：缩写 → 中文名 → 英文名 → IUPAC → CAS → CID → 分子式 → MW → 熔/沸/闪点/密度，每个物性值带来源。联网优先：本地库空了/过期了照样出表 |
+| `chemfacts zhname add\|list\|show\|remove` | 维护中文名（PubChem 没有中文名，本工具也绝不编造）——`zhnames.json`，按 CAS 落键，记录核实出处 |
 | `chemfacts alias add\|list\|show\|remove` | 管理缩写 → 物质注册表 |
 | `chemfacts cache clear\|show` | 管理本地 SQLite 事实缓存 |
 
@@ -281,6 +285,15 @@ verdict: CONFIRMED
 $ chemfacts verify NMP mw --claim "110.0"
 verdict: MISMATCH
 detail : claim 110.0 not confirmed; closest sourced value: 99.13 g/mol (PubChem PUG REST)
+
+# 录入中文名（PubChem 不提供；记录你核实的出处，按 CAS 落键）
+$ chemfacts zhname add THF 四氢呋喃 --source "通用名 (common name)"
+curated 109-99-9 -> 四氢呋喃 (2026-10-21) [resolved to Tetrahydrofuran (109-99-9)]
+
+# 总对应表：缩写 | 中文名 | 英文名 | IUPAC | CAS | CID | 分子式 | MW | 熔 | 沸 | 闪点 | 密度（每值带来源）
+$ chemfacts export tetrahydrofuran --format md
+| 缩写 | 中文名 | 英文名 | IUPAC | CAS | CID | 分子式 | 分子量 | … | 熔点 | … |
+|  | 四氢呋喃 | Tetrahydrofuran | oxolane | 109-99-9 | 8028 | C4H8O | 72.11 g/mol | … | -108.3 °C ; … | … |
 ```
 
 ## 让任意 agent 使用：MCP 服务
@@ -323,14 +336,15 @@ docker run -d -p 8000:8000 -v chemfacts-data:/data chemfacts-mcp
 ## 库（Python API）
 
 ```python
-from chemfacts import ChemFacts, card_to_markdown
+from chemfacts import ChemFacts, card_to_markdown, export_rows
 
 f = ChemFacts()
 ident = f.resolve("IPDI")                     # -> CompoundIdentity（CID、CAS、分子式、MW…）
 vals = f.lookup("IPDI", "flash-point")        # -> [PropertyValue, ...] 每个值带来源+日期
 res = f.verify("IPDI", "mw", "222.28")        # -> VerifyResult(verdict="confirmed", ...)
-card = f.build_card("IPDI")                   # -> FactCard
+card = f.build_card("IPDI")                   # -> FactCard（含 name_zh / registered_abbrevs，若已录入）
 print(card_to_markdown(card, obsidian=True))
+rows = export_rows(f, ["IPDI", "NMP"])        # -> 总对应表行（联网优先，空库/过期库照样出表）
 ```
 
 ## 缓存与溯源
@@ -343,16 +357,19 @@ print(card_to_markdown(card, obsidian=True))
 |---|---|---|
 | `CHEMFACTS_CACHE_DIR` | `~/.cache/chemfacts` | 事实缓存目录 |
 | `CHEMFACTS_ALIASES` | `<缓存目录>/aliases.json` | 缩写注册表文件 |
+| `CHEMFACTS_ZHNAMES` | `<缓存目录>/zhnames.json` | 中文名人工库 |
 
 ## 数据来源
 
-v0.2 使用 **PubChem**（PUG REST 查身份，PUG View 查实测物性——聚合自 HSDB、ILO ICSC、
-EPA、CAMEO、NTP 等）。第二来源交叉核对（NIST WebBook、GESTIS/ECHA）在路线图中。
+v0.4 使用 **PubChem**（PUG REST 查身份，PUG View 查实测物性——聚合自 HSDB、ILO ICSC、
+EPA、CAMEO、NTP 等）。中文名来自你的 `zhnames.json` 人工库（PubChem 没有，也绝不
+翻译/猜测）。第二来源交叉核对（NIST WebBook、GESTIS/ECHA）在路线图中。
 
 ## 路线图
 
 - [x] PubChem 身份 + 实测物性，card / verify / crosscheck，SQLite 缓存
 - [x] 缩写注册表：把含糊名称钉到一个物质（JSON，用户可编辑）
+- [x] 中文名人工库（`zhname`）+ 总对应表导出（`export`），联网优先
 - [ ] NIST WebBook 作为第二来源（相变数据）
 - [ ] GESTIS / ECHA / 厂商 SDS 的权威闪点
 - [ ] `batch` 模式：一次核完配方里的全部试剂

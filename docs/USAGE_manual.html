@@ -70,7 +70,7 @@ h4.sub { font-size:10pt; color:#2b3f5c; margin:8pt 0 3pt; }
 <h1>chemfacts · 溯源优先化学事实查证 · 使用手册</h1>
 <div class="subtitle">面向使用者的功能说明、操作指引与可复核证据</div>
 <div style="margin:6pt 0 2pt">
-<span class="tagline">版本 v0.3.0 · commit 34b4be4</span>
+<span class="tagline">版本 v0.4.0 · commit 11b1b54</span>
 <span class="tagline">环境 Windows · Python 3.11.15 (venv)</span>
 <span class="tagline">缓存快照 2026-10-21 · TTL 30 天</span>
 </div>
@@ -89,7 +89,7 @@ h4.sub { font-size:10pt; color:#2b3f5c; margin:8pt 0 3pt; }
   </defs>
   <rect x="10" y="28" width="180" height="116" rx="10" fill="#f5f8fc" stroke="#4a72c4" stroke-width="1.5"/>
   <text x="26" y="52" font-size="13" font-weight="700" fill="#14233d">查询层</text>
-  <text x="26" y="72" font-size="9.5" fill="#3a4a5f">CLI · 8 命令（typer）</text>
+  <text x="26" y="72" font-size="9.5" fill="#3a4a5f">CLI · 10 命令（typer）</text>
   <text x="26" y="88" font-size="9.5" fill="#3a4a5f">MCP · 6 工具（stdio/http）</text>
   <text x="26" y="104" font-size="9.5" fill="#3a4a5f">--json 机器可读输出</text>
   <text x="26" y="120" font-size="8" fill="#74829a">使用者 / agent 入口</text>
@@ -100,13 +100,14 @@ h4.sub { font-size:10pt; color:#2b3f5c; margin:8pt 0 3pt; }
     <text x="286" y="90">lookup · 数值 + 四要素溯源</text>
     <text x="286" y="106">verify / crosscheck · 判定</text>
     <text x="286" y="122">card / alias · 卡片 / 钉位</text>
+    <text x="286" y="138">export / zhname · 总表 / 中文名</text>
   </g>
   <rect x="530" y="28" width="180" height="116" rx="10" fill="#fdf4ec" stroke="#b45309" stroke-width="1.5"/>
   <text x="546" y="52" font-size="13" font-weight="700" fill="#8a3d05">数据层</text>
   <text x="546" y="72" font-size="9.5" fill="#3a4a5f">SQLite 缓存（TTL 30d）</text>
-  <text x="546" y="88" font-size="9.5" fill="#3a4a5f">aliases.json（手工策展）</text>
-  <text x="546" y="104" font-size="9.5" fill="#3a4a5f">PubChem REST（权威源）</text>
-  <text x="546" y="120" font-size="8" fill="#74829a">facts.db · 14 身份 / 224 值 / 1227 参考</text>
+  <text x="546" y="88" font-size="9.5" fill="#3a4a5f">aliases.json（缩写策展）</text>
+  <text x="546" y="104" font-size="9.5" fill="#3a4a5f">zhnames.json（中文名策展）</text>
+  <text x="546" y="120" font-size="8" fill="#74829a">PubChem REST（权威源 · 联网优先）</text>
   <line x1="190" y1="86" x2="266" y2="86" stroke="#14233d" stroke-width="1.8" marker-end="url(#a1)"/>
   <text x="228" y="78" font-size="8.5" fill="#5a6b82" text-anchor="middle">解析+钉位</text>
   <line x1="470" y1="86" x2="526" y2="86" stroke="#14233d" stroke-width="1.8" marker-end="url(#a1)"/>
@@ -129,10 +130,11 @@ h4.sub { font-size:10pt; color:#2b3f5c; margin:8pt 0 3pt; }
 <div class="fact"><div class="n">224</div><div class="l">缓存物性值<br>(value 行 · 每条带来源+参考编号)</div></div>
 <div class="fact"><div class="n">1227</div><div class="l">PubChem 参考条目<br>(ref 行 · 溯源编号池)</div></div>
 <div class="data"><div class="n">13</div><div class="l">别名钉位<br>(aliases.json · 缩写→唯一 CAS)</div></div>
-<div class="data"><div class="n">6</div><div class="l">MCP 工具<br>(resolve/lookup/crosscheck/verify/card/alias)</div></div>
+<div class="data"><div class="n">1</div><div class="l">中文名录入<br>(zhnames.json · 109-99-9 四氢呋喃)</div></div>
+<div class="all"><div class="n">6</div><div class="l">MCP 工具<br>(resolve/lookup/crosscheck/verify/card/alias)</div></div>
 </div>
 
-<div class="note"><span class="cap">证据快照</span>：本手册所有输出抓自<b>同一缓存快照</b>（v0.3.0 · facts.db · 2026-10-21 13:30 UTC 拉取 · identity 14 / value 224 / ref 1227 · 别名 13 条）。TTL（30 天）内重跑各命令，数值与来源逐字一致，仅 <code>accessed</code> 日期可能刷新；<code>cache clear</code> 后重新拉取，应只有日期变化——这是第 4 节"复现指引"的核对基准。</div>
+<div class="note"><span class="cap">证据快照</span>：本手册所有输出抓自<b>同一缓存快照</b>（v0.4.0 · facts.db · 2026-10-21 13:30 UTC 拉取 · identity 14 / value 224 / ref 1227 · 别名 13 条 · 中文名 1 条）。TTL（30 天）内重跑各命令，数值与来源逐字一致，仅 <code>accessed</code> 日期可能刷新；<code>cache clear</code> 后重新拉取，应只有日期变化——这是第 4 节"复现指引"的核对基准。</div>
 
 <!-- ============ P2 查证核心·原理 ============ -->
 <div class="pagebreak"></div>
@@ -468,7 +470,7 @@ curated 109-99-9 -> 四氢呋喃 (2026-10-21) [resolved to Tetrahydrofuran (109-
 <!-- ============ P7 工作流 ============ -->
 <div class="pagebreak"></div>
 <h2><span class="n">3</span>常见工作流（照做即可）</h2>
-<p>五个高频场景，每个给命令序列与复核要点；全部输出基于同一缓存快照。</p>
+<p>六个高频场景，每个给命令序列与复核要点；全部输出基于同一缓存快照。</p>
 
 <h3>A · 开反应前查某溶剂的闪点/自燃点（安全）</h3>
 <pre><span class="k">chemfacts resolve NMP</span>            <span class="c"># 先确认身份（钉位 + CID），避免把 NMP 误解析成他物</span>
@@ -498,6 +500,12 @@ curated 109-99-9 -> 四氢呋喃 (2026-10-21) [resolved to Tetrahydrofuran (109-
 <span class="c"># 卡片带 YAML frontmatter（cas/cid/status/accessed/aliases），库内可 [[]] 双链、Dataview 查询</span>
 <span class="c"># 或按 §2 功能八注册 MCP 后，agent 直接调 chemfacts_verify 等工具，回答自带溯源 JSON</span></pre>
 
+<h3>F · 生成"物质-中文名-英文名-物性"总表（配方 / 采购清单用）</h3>
+<pre><span class="k">chemfacts zhname add THF 四氢呋喃 --source "通用名"</span>
+<span class="k">chemfacts export --all-aliases tetrahydrofuran --format csv --out map.csv --fresh</span>
+<span class="c"># 联网优先：本地库空/过期不影响出表；缩写列/中文名列只认注册表（缺=空格，不猜）；</span>
+<span class="c"># 解析不出的物质出 (unresolved: …) 行（如聚合物 PTMEG，PubChem 无单一化合物记录）</span></pre>
+
 <!-- ============ P8 边界与复现 ============ -->
 <div class="pagebreak"></div>
 <h2><span class="n">4</span>边界声明与复现指引</h2>
@@ -508,6 +516,7 @@ curated 109-99-9 -> 四氢呋喃 (2026-10-21) [resolved to Tetrahydrofuran (109-
 <tr><td class="k">UNVERIFIED / NOT_FOUND = 缺失即缺失</td><td>没有带来源的数据就报缺失，<b>任何宣称值都不因此被视为已核实</b>；要数值只能走一手数据库（ICSC / HSDB / NIOSH 公开页），工具不编。</td></tr>
 <tr><td class="k">TTL 30 天的复现窗口</td><td>TTL 内输出逐字稳定（数值 + 参考编号不变）；<code>cache clear</code> 后重拉，数值/来源应一致、仅日期刷新。跨快照比较数值无意义。</td></tr>
 <tr><td class="k">别名注册表 = 人工策展</td><td>工具不自动生成缩写映射；每条钉位需人工 <code>alias add</code> 并写排除理由。注册表是编辑对象，不是知识源。</td></tr>
+<tr><td class="k">中文名列 = 人工录入（fail-closed）</td><td>PubChem 不提供中文名，工具也<b>绝不翻译/猜测</b>；<code>zhnames.json</code> 里没录入的物质，export 表中文名列就是空格。要填 = 你核实后 <code>zhname add</code>（带出处）。</td></tr>
 <tr><td class="k">退出码 2 的双重含义</td><td><code>crosscheck</code> CONFLICT 与 typer 用法错误（缺参数）都返回 rc=2；脚本判定时先检查 stderr 是否含 <code>Usage</code>，再读判定状态。</td></tr>
 </table>
 
@@ -519,12 +528,13 @@ curated 109-99-9 -> 四氢呋喃 (2026-10-21) [resolved to Tetrahydrofuran (109-
 </table>
 
 <h3>复现指引（全部输出可逐步复核）</h3>
-<pre><span class="c"># 环境：Windows · Python 3.11.15 (项目 .venv) · 仓库 CL4Y68/chemfacts @ 34b4be4（v0.3.0）</span>
+<pre><span class="c"># 环境：Windows · Python 3.11.15 (项目 .venv) · 仓库 CL4Y68/chemfacts @ 11b1b54（v0.4.0）</span>
 <span class="c"># 安装：pip install chemfacts（或 uv tool install chemfacts；开发态 uv run chemfacts）</span>
-<span class="c"># 检索库：~/.cache/chemfacts/facts.db + aliases.json（手册证据快照：14 / 224 / 1227 / 13 条，2026-10-21）</span>
-<span class="c"># 逐条复现：按 §1 各命令重跑，TTL 内输出与手册逐字一致（仅日期行允许刷新）；</span>
+<span class="c"># 检索库：~/.cache/chemfacts/facts.db + aliases.json + zhnames.json（手册证据快照：14 / 224 / 1227 / 13 条 / 1 条，2026-10-21）</span>
+<span class="c"># 逐条复现：按 §1-§2 各命令重跑，TTL 内输出与手册逐字一致（仅日期行允许刷新）；</span>
+<span class="c"># export 联网优先：即使本地库清空，总表仍可现拉 PubChem 生成（--fresh 强制现拉）。</span>
 <span class="c"># 判定与退出码口径见 §1 三张表与 §4 边界表。线上阅读：https://cl4y68.github.io/chemfacts/docs/USAGE_manual.html（GitHub Pages）</span></pre>
-<footer>本手册：chemfacts v0.3.0 使用手册 · 面向使用者 · 全部功能输出为同一缓存快照（2026-10-21）的真实运行结果，可按第 4 节路径逐步复现 · computed 值与 CONFLICT 状态的含义边界已在 §4 逐项声明</footer>
+<footer>本手册：chemfacts v0.4.0 使用手册 · 面向使用者 · 全部功能输出为同一缓存快照（2026-10-21）的真实运行结果，可按第 4 节路径逐步复现 · computed 值、CONFLICT 状态与中文名列 fail-closed 的含义边界已在 §4 逐项声明</footer>
 
 </body>
 </html>
