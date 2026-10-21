@@ -34,6 +34,7 @@ entry, not a memory.
 ## How it works
 
 ```mermaid
+%%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
 flowchart TD
     A(["input · name / CAS / CID / SMILES / abbreviation"]):::io --> B
 
@@ -88,6 +89,7 @@ dimethylpiperazine; H12MDI is hydrogenated MDI *or* 1,12-diisocyanatododecane; B
 butyl acrylate). The registry resolves that once, for every subsequent lookup:
 
 ```mermaid
+%%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
 flowchart LR
     A(["DMPA<br/>ambiguous abbreviation"]):::io
     B["alias registry<br/>pin → CAS 4767-03-7<br/>+ why-not note"]:::decide
@@ -144,6 +146,7 @@ to version control. See [aliases.example.json](aliases.example.json).
 ## Status logic
 
 ```mermaid
+%%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
 flowchart TD
     A["sourced values for one property"]:::proc
     B["keep only comparable values<br/>drop 'greater than' / 'approx.'<br/>drop sub-atmospheric ('158 °C @ 10 mmHg')<br/>normalise °F → °C"]:::proc
@@ -181,6 +184,7 @@ density ±0.01 g/cm³; everything else uses a 10 % relative threshold.
 ## Architecture
 
 ```mermaid
+%%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
 flowchart TD
     CLI["cli.py · typer<br/>resolve · lookup · verify · crosscheck · card<br/>cache · alias · mcp"]:::mcp
     subgraph CORE["core.py — ChemFacts facade"]

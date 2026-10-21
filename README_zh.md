@@ -27,8 +27,9 @@ verdict: CONFIRMED
 ## 工作原理
 
 ```mermaid
+%%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
 flowchart TD
-    A(["输入 · 名称 / CAS / CID / SMILES / 缩写"]):::io --> B
+    A(["输入 · 名称 / CAS /<br/>CID / SMILES / 缩写"]):::io --> B
 
     subgraph REG["alias registry · 缩写钉位"]
         B{"注册表里有<br/>这个缩写?"}:::decide
@@ -39,7 +40,7 @@ flowchart TD
 
     subgraph PUB["PubChem · 网络"]
         D --> E["PUG REST · 身份<br/>IUPAC · CAS · 分子式 · MW · SMILES · InChIKey"]:::proc
-        D --> F["PUG View · 带来源数值<br/>闪点 · 沸点 · 熔点 · 密度 …"]:::proc
+        D --> F["PUG View · 带来源数值<br/>闪点 / 沸点 / 熔点 / 密度"]:::proc
     end
 
     subgraph LOCAL["本地状态 · SQLite + JSON"]
@@ -50,7 +51,7 @@ flowchart TD
     G --> H["交叉核对<br/>单位归一 · 剔除限定词/减压值"]:::proc
     H --> I{"极差 vs 属性阈值?"}:::decide
     I -- "无数值" --> J(["unverified 未查证"]):::plain
-    I -- "极差超阈值" --> K(["conflict 冲突<br/>闭杯/开杯差异除外"]):::warn
+    I -- "极差超阈值" --> K(["conflict 冲突<br/>（闭杯/开杯<br/>差异除外）"]):::warn
     I -- "阈值内" --> L(["verified 已核验"]):::ok
     J --> M["可审计事实卡片<br/>Markdown · Obsidian frontmatter · JSON"]:::card
     K --> M
@@ -77,6 +78,7 @@ flowchart TD
 同一个缩写可以指好几种物质：DMPA 可能是二甲基丙二酸*或*1,4-二甲基哌嗪；H12MDI 可能是氢化 MDI*或*1,12-二异氰酸酯十二烷；BA 是丁基丙烯酸酯。注册表把这个歧义一次性解决，之后所有查询都走同一个答案：
 
 ```mermaid
+%%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
 flowchart LR
     A(["DMPA<br/>含糊缩写"]):::io
     B["alias registry<br/>钉 → CAS 4767-03-7<br/>+ 排除注释"]:::decide
@@ -127,14 +129,15 @@ $ chemfacts alias remove DMPA
 ## 状态判定逻辑
 
 ```mermaid
+%%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
 flowchart TD
     A["某属性的全部来源数值"]:::proc
-    B["只保留可比值<br/>剔除限定词（'greater than'/'approx.'）<br/>剔除减压值（'158 °C @ 10 mmHg'）<br/>°F → °C 归一"]:::proc
+    B["只保留可比值<br/>剔除限定词（如 approx.）<br/>剔除减压值（如 10 mmHg）<br/>°F→°C 归一"]:::proc
     C{"≥ 2 个值?"}:::decide
     D{"极差 > 阈值?"}:::decide
     E{"闭杯值与开杯值<br/>同时存在?"}:::decide
-    V(["verified 已核验<br/>单一来源 · 阈值内 · 杯型差异"]):::ok
-    X(["CONFLICT 冲突<br/>标记出来 · 列出每个值及来源"]):::warn
+    V(["verified 已核验<br/>单一来源 / 阈值内 /<br/>杯型差异"]):::ok
+    X(["CONFLICT 冲突<br/>标记出来 · 列出<br/>每个值及来源"]):::warn
     N["各属性冲突阈值<br/>熔点 ±3 · 沸点 ±2 · 闪点 ±1.5 · 自燃 ±20 · 密度 ±0.01<br/>其余: 10% 相对阈值"]:::plain
 
     A --> B --> C
@@ -162,6 +165,7 @@ flowchart TD
 ## 模块结构
 
 ```mermaid
+%%{init: {"look": "neo", "theme": "base", "themeVariables": {"lineColor": "#94a3b8", "primaryTextColor": "#0f172a", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "basis", "htmlLabels": true, "nodeSpacing": 42, "rankSpacing": 56, "padding": 10}} }%%
 flowchart TD
     CLI["cli.py · typer<br/>resolve · lookup · verify · crosscheck · card<br/>cache · alias · mcp"]:::mcp
     subgraph CORE["core.py — ChemFacts 门面"]
