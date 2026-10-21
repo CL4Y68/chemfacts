@@ -15,6 +15,7 @@ make that failure mode impossible.
 > [使用手册（中文）](docs/USAGE_zh.md) — feature reference, operating guide, and
 > verifiable evidence (every example is a real, replayable output).
 > A print-styled, figure-annotated version: [功能手册（HTML）](docs/USAGE_manual.html).
+> Read it online (GitHub Pages): <https://cl4y68.github.io/chemfacts/docs/USAGE_manual.html>.
 
 ## A real catch
 
