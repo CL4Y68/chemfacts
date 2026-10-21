@@ -125,7 +125,8 @@ differences are recognised and do not count as conflicts.
 | `resolve` | 0 = success |
 | `verify` | 0 = CONFIRMED, 1 = MISMATCH / NOT_FOUND |
 | `crosscheck` | 0 = VERIFIED / UNVERIFIED, 2 = CONFLICT |
-| `lookup` / `card` / `alias` / `cache` | 0 = success |
+| `lookup` / `card` / `alias` / `cache` / `export` | 0 = success |
+| `zhname` | 0 = success (entry found/changed), 1 = not curated |
 
 ---
 
@@ -341,7 +342,61 @@ hydrogenated MDI (5124-30-1) and explicitly excludes 1,12-diisocyanatododecane
 (13879-35-1). Search both CAS numbers in PubChem: different formula/MW, which is exactly
 why the pin matters.
 
-### 4.8 `mcp` — let any MCP-capable agent use chemfacts
+### 4.8 `export` — the correspondence table (abbreviation | Chinese | English | properties)
+
+One command builds the master correspondence table for a list of subjects:
+abbreviation → Chinese name → English name → IUPAC → CAS → CID → formula → MW →
+melting / boiling / flash point / density, each property carrying its source list.
+
+- **Online-first:** an empty or stale local database is no obstacle — every row is
+  answered by pulling PubChem (the cache is only a TTL accelerator, not the source
+  of truth). `--fresh` forces a live pull for this run.
+- **Curation columns are fail-closed:** the abbreviation and Chinese-name cells come
+  from your registries only (`aliases.json` + `zhnames.json`). A missing curation is
+  an empty cell, never a guess.
+- Unresolvable subjects are reported as `(unresolved: …)` rows, not dropped.
+
+Real run (15 rows shown as 1 row, THF):
+
+```
+$ chemfacts export tetrahydrofuran --format md
+| 缩写 | 中文名 | 英文名 | IUPAC | CAS | CID | 分子式 | 分子量 | … | 熔点 | … |
+|  | 四氢呋喃 | Tetrahydrofuran | oxolane | 109-99-9 | 8028 | C4H8O | 72.11 g/mol | … | -108.3 °C ; … | … |
+```
+
+```
+# whole registry + named subjects, CSV to a file, live pull:
+chemfacts export --all-aliases tetrahydrofuran "4,4'-diphenylmethanediisocyanate" \
+    --format csv --out map.csv --fresh
+```
+
+### 4.9 `zhname` — curate Chinese names (PubChem has none; this tool never invents any)
+
+`zhnames.json` (default `~/.cache/chemfacts/zhnames.json`, override with
+`CHEMFACTS_ZHNAMES`) holds user-verified Chinese names, keyed by CAS (preferred) or
+CID — the same identifier space as `aliases.json`, so the two files agree on "which
+compound". A name/abbreviation input to `add` is resolved through PubChem first and
+stored under its CAS, with the source of your verification recorded.
+
+```
+$ chemfacts zhname add THF 四氢呋喃 --source "通用名 (common name)"
+curated 109-99-9 -> 四氢呋喃 (2026-10-21) [resolved to Tetrahydrofuran (109-99-9)]
+
+$ chemfacts zhname show THF
+identifier : 109-99-9
+name_zh    : 四氢呋喃
+source     : 通用名 (common name)
+
+$ chemfacts zhname list
+109-99-9           四氢呋喃  # 来源: 通用名 (common name)
+```
+
+The curation surfaces in `resolve` output, fact cards (Obsidian/MD/JSON), MCP tool
+payloads (`name_zh`, `name_zh_source`, `registered_abbrevs`), and the `export` table's
+中文名列 (Chinese-name column). A compound without a curation shows an empty cell —
+missing = missing, not guessed.
+
+### 4.10 `mcp` — let any MCP-capable agent use chemfacts
 
 Exposes the six capabilities as MCP tools, so Claude Code, Codex, ZCode, Hermes or any
 agent harness can verify chemical facts by provenance instead of by model memory. Two

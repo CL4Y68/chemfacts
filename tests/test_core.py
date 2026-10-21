@@ -21,14 +21,14 @@ class FakePubChem:
 
     def identity(self, identifier):
         self.calls.append(f"identity:{identifier}")
-        if "nmp" in identifier.lower() or identifier == "13387":
+        if "nmp" in identifier.lower() or identifier in ("13387", "872-50-4"):
             return CompoundIdentity(
                 identifier=identifier, cid=13387, name="N-Methyl-2-pyrrolidone",
                 iupac_name="1-methylpyrrolidin-2-one", cas="872-50-4",
                 formula="C5H9NO", molecular_weight=99.13,
                 canonical_smiles="CN1CCCC1=O", inchi_key="XJTMZKTFBROXJF-UHFFFAOYSA-N",
             )
-        if "ipdi" in identifier.lower() or identifier == "169132":
+        if "ipdi" in identifier.lower() or identifier in ("169132", "5841-80-4"):
             return CompoundIdentity(
                 identifier=identifier, cid=169132, name="Isophorone diisocyanate",
                 iupac_name="5-isocyanato-1-(isocyanatomethyl)-1,3,3-trimethylcyclohexane",

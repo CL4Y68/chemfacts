@@ -110,12 +110,72 @@ def test_tools_registered():
             "chemfacts_crosscheck", "chemfacts_card", "chemfacts_alias"} <= names
 
 
-# -- streamable-http transport (offline: subprocess server, no PubChem needed) --
+# -- streamable-http transport (offline: in-process uvicorn, no PubChem needed) --
 
 
-def test_http_transport_offline(tmp_path):
-    """Spawn the streamable-http server as a subprocess and drive it with the
-    MCP client. Only touches local files (alias list) - no network needed."""
+def test_http_transport_offline(tmp_path, monkeypatch):
+    """Serve the streamable-http ASGI app in-process (uvicorn on a thread)
+    and drive it with the real MCP client. Offline: _FACTS is monkeypatched
+    to a fake-backed ChemFacts, so tool calls touch only local tmp files."""
+    import json
+    import socket
+    import threading
+    import time
+
+    import anyio
+    import httpx2
+    import uvicorn
+    from mcp import ClientSession
+    from mcp.client.streamable_http import streamable_http_client
+
+    fake = FakePubChem()
+    f = ChemFacts(client=fake, cache=FactCache(str(tmp_path / "facts.db")))
+    monkeypatch.setattr(mcp_server, "_FACTS", f)
+
+    app = mcp_server.server.streamable_http_app(streamable_http_path="/mcp")
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
+    usrv = uvicorn.Server(config)
+    thread = threading.Thread(target=usrv.run, daemon=True)
+    thread.start()
+    deadline = time.time() + 25
+    while time.time() < deadline:
+        try:
+            s = socket.create_connection(("127.0.0.1", port), timeout=1)
+            s.close()
+            break
+        except OSError:
+            time.sleep(0.3)
+    else:
+        pytest.fail("http server did not come up")
+
+    try:
+        # trust_env=False: never route loopback test traffic through a
+        # system/OS-level proxy (e.g. Clash in system-proxy mode).
+        http = httpx2.AsyncClient(trust_env=False)
+
+        async def drive():
+            async with streamable_http_client(
+                f"http://127.0.0.1:{port}/mcp", http_client=http
+            ) as (read, write), ClientSession(read, write) as s:
+                await s.initialize()
+                tools = await s.list_tools()
+                assert len(tools.tools) == 6
+                r = await s.call_tool("chemfacts_alias", {"action": "list"})
+                assert json.loads(r.content[0].text)["ok"] is True
+
+        anyio.run(drive)
+    finally:
+        usrv.should_exit = True
+        thread.join(timeout=10)
+
+
+def test_http_subprocess_smoke(tmp_path):
+    """The `python -m chemfacts.mcp_server` console entry starts the
+    streamable-http service and answers a raw initialize handshake (SSE)."""
     import json
     import os
     import socket
@@ -123,9 +183,7 @@ def test_http_transport_offline(tmp_path):
     import sys
     import time
 
-    import anyio
-    from mcp import ClientSession
-    from mcp.client.streamable_http import streamable_http_client
+    import httpx2
 
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
@@ -140,7 +198,8 @@ def test_http_transport_offline(tmp_path):
     proc = subprocess.Popen(
         [
             sys.executable, "-m", "chemfacts.mcp_server",
-            "--transport", "streamable-http", "--host", "127.0.0.1", "--port", str(port),
+            "--transport", "streamable-http", "--host", "127.0.0.1",
+            "--port", str(port),
         ],
         env=env,
         stdout=subprocess.DEVNULL,
@@ -158,17 +217,27 @@ def test_http_transport_offline(tmp_path):
         else:
             pytest.fail("http server did not come up")
 
-        async def drive():
-            async with streamable_http_client(
-                f"http://127.0.0.1:{port}/mcp"
-            ) as (read, write), ClientSession(read, write) as s:
-                await s.initialize()
-                tools = await s.list_tools()
-                assert len(tools.tools) == 6
-                r = await s.call_tool("chemfacts_alias", {"action": "list"})
-                assert json.loads(r.content[0].text)["ok"] is True
-
-        anyio.run(drive)
+        # trust_env=False: keep the handshake off any system proxy.
+        resp = httpx2.Client(trust_env=False).post(
+            f"http://127.0.0.1:{port}/mcp",
+            json={
+                "jsonrpc": "2.0", "id": 1, "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-03-26",
+                    "capabilities": {},
+                    "clientInfo": {"name": "smoke", "version": "0"},
+                },
+            },
+            headers={"Accept": "application/json, text/event-stream"},
+            timeout=15,
+        )
+        assert resp.status_code == 200
+        # SSE response: "event: message\ndata: {json}\n\n"
+        data_line = next(
+            line for line in resp.text.splitlines() if line.startswith("data:")
+        )
+        payload = json.loads(data_line[len("data:"):].strip())
+        assert payload["result"]["serverInfo"]["name"] == "chemfacts"
     finally:
         proc.terminate()
         proc.wait(timeout=15)

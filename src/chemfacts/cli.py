@@ -9,12 +9,15 @@
 
 from __future__ import annotations
 
+import json
+import re
 from pathlib import Path
 
 import typer
 
 from . import core, model, pubchem
 from .aliases import AliasRegistry
+from .zhnames import ZhNameRegistry
 
 app = typer.Typer(
     name="chemfacts",
@@ -26,6 +29,8 @@ cache_app = typer.Typer(help="Manage the local fact cache.")
 app.add_typer(cache_app, name="cache")
 alias_app = typer.Typer(help="Manage the abbreviation -> compound registry.")
 app.add_typer(alias_app, name="alias")
+zhname_app = typer.Typer(help="Manage curated Chinese names (manual curation only, never guessed).")
+app.add_typer(zhname_app, name="zhname")
 
 
 def _facts() -> core.ChemFacts:
@@ -49,11 +54,20 @@ def resolve(identifier: str = typer.Argument(..., help="name, CAS, SMILES, InChI
     typer.echo(f"CID             : {ident.cid}")
     typer.echo(f"CAS             : {ident.cas or '(not found)'}")
     typer.echo(f"IUPAC           : {ident.iupac_name or '(n/a)'}")
+    zh = f.zhnames.find(ident.cas, ident.cid)
+    if zh is not None:
+        src = f"  (来源: {zh.source})" if zh.source else "  (人工录入)"
+        typer.echo(f"中文名          : {zh.name_zh}{src}")
     typer.echo(f"Formula         : {ident.formula or '(n/a)'}")
     mw = f"{ident.molecular_weight} g/mol" if ident.molecular_weight is not None else "(n/a)"
     typer.echo(f"MW              : {mw}")
     typer.echo(f"SMILES          : {ident.canonical_smiles or '(n/a)'}")
     typer.echo(f"InChIKey        : {ident.inchi_key or '(n/a)'}")
+    key = ident.cas if ident.cas else (str(ident.cid) if ident.cid is not None else "")
+    if key:
+        abbrs = [e.alias for e in f.aliases.aliases_for(key)]
+        if abbrs:
+            typer.echo(f"Registered abbr : {', '.join(abbrs)}  (registry)")
     typer.echo(f"Accessed        : {ident.accessed_at}  source: {ident.source}")
 
 
@@ -150,6 +164,99 @@ def crosscheck(
     raise typer.Exit(0 if status != "conflict" else 2)
 
 
+@app.command()
+def export(
+    identifiers: list[str] = typer.Argument(
+        None, help="compounds: name / CAS / CID / registered abbreviation"
+    ),
+    all_aliases: bool = typer.Option(
+        False, "--all-aliases", help="include every registered abbreviation as a subject"
+    ),
+    fmt: str = typer.Option("csv", "--format", help="csv | md | json"),
+    out: Path | None = typer.Option(None, "--out", help="write to a file instead of stdout"),
+    fresh: bool = typer.Option(
+        False, "--fresh", help="bypass the local cache; pull identity + properties online now"
+    ),
+):
+    """Correspondence table: 缩写 | 中文名 | 英文名 | CAS | CID | 分子式 | 分子量 |
+    熔点 | 沸点 | 闪点 | 密度，每一格带来源。
+
+    Online-first: works with an empty local DB — the cache is a TTL accelerator,
+    PubChem is the source of truth. Curation columns (abbreviation / Chinese name)
+    come from the user's registries only; empty = not curated, never guessed.
+    """
+    import csv
+    import io
+
+    f = _facts()
+    subjects: list[str] = []
+    if all_aliases:
+        subjects.extend(e.alias for e in f.aliases.list())
+    subjects.extend(identifiers or [])
+    if not subjects:
+        typer.echo("no subjects: pass compounds, or use --all-aliases", err=True)
+        raise typer.Exit(1)
+    seen: set[str] = set()
+    subjects = [s for s in subjects if not (s.upper() in seen or seen.add(s.upper()))]
+    rows = core.export_rows(f, subjects, fresh=fresh)
+
+    cols = [
+        "缩写", "中文名", "英文名", "IUPAC", "CAS", "CID", "分子式",
+        "分子量", "分子量来源",
+        "熔点", "熔点来源", "沸点", "沸点来源", "闪点", "闪点来源", "密度", "密度来源",
+    ]
+
+    def _vals(r: dict) -> dict[str, str]:
+        if r.get("unresolved"):
+            v = {c: "" for c in cols}
+            v["英文名"] = f"(unresolved: {r.get('error', '')})"
+            return v
+        return {
+            "缩写": ", ".join(r.get("abbrevs", [])),
+            "中文名": r.get("name_zh", ""),
+            "英文名": r.get("name_en", ""),
+            "IUPAC": r.get("iupac", ""),
+            "CAS": r.get("cas", ""),
+            "CID": str(r.get("cid", "")),
+            "分子式": r.get("formula", ""),
+            "分子量": r.get("mw", ""),
+            "分子量来源": r.get("mw_source", ""),
+            "熔点": r.get("melting-point", ""),
+            "熔点来源": r.get("melting-point_source", ""),
+            "沸点": r.get("boiling-point", ""),
+            "沸点来源": r.get("boiling-point_source", ""),
+            "闪点": r.get("flash-point", ""),
+            "闪点来源": r.get("flash-point_source", ""),
+            "密度": r.get("density", ""),
+            "密度来源": r.get("density_source", ""),
+        }
+
+    if fmt == "json":
+        text = json.dumps(rows, indent=2, ensure_ascii=False)
+    elif fmt == "md":
+        lines = ["| " + " | ".join(cols) + " |", "|" + "---|" * len(cols)]
+        for r in rows:
+            v = _vals(r)
+            lines.append("| " + " | ".join(v[c] for c in cols) + " |")
+        text = "\n".join(lines)
+    else:  # csv
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(cols)
+        for r in rows:
+            v = _vals(r)
+            w.writerow([v[c] for c in cols])
+        text = buf.getvalue()
+
+    if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        # BOM so Excel opens the Chinese headers correctly
+        out.write_text(text, encoding="utf-8-sig" if fmt == "csv" else "utf-8")
+        typer.echo(f"wrote {out}  ({len(rows)} rows)")
+    else:
+        typer.echo(text)
+
+
 def _registry() -> AliasRegistry:
     return AliasRegistry()
 
@@ -197,6 +304,97 @@ def alias_show(alias: str = typer.Argument(..., help="abbreviation to inspect"))
     typer.echo(f"pinned to : {e.identifier}")
     typer.echo(f"note      : {e.note or '(none)'}")
     typer.echo(f"added     : {e.added or '(unknown)'}")
+
+
+def _zhnames() -> ZhNameRegistry:
+    return ZhNameRegistry()
+
+
+_CAS_RE = re.compile(r"^\d{2,7}-\d{2}-\d$")
+
+
+def _zh_key_for(identifier: str) -> tuple[str, str]:
+    """Key a curation entry on CAS (preferred) or CID, the registry contract.
+
+    A CAS-like or numeric input is used as-is. Anything else (a name or
+    abbreviation) is resolved through PubChem first, so the file stays
+    machine-readable: a key always names the compound unambiguously.
+    """
+    raw = identifier.strip()
+    if _CAS_RE.match(raw) or raw.isdigit():
+        return raw.upper(), "as-is"
+    ident = _facts().resolve(raw)
+    key = ident.cas or (str(ident.cid) if ident.cid is not None else raw.upper())
+    return key, f"resolved to {ident.name or ident.title or raw} ({key})"
+
+
+@zhname_app.command("add")
+def zhname_add(
+    identifier: str = typer.Argument(
+        ..., help="compound identifier (CAS preferred; names/abbrevs are resolved)"
+    ),
+    name_zh: str = typer.Argument(..., help="the Chinese name, e.g. 四氢呋喃"),
+    source: str = typer.Option(
+        "", "--source", help="where this name was verified (SDS / lab handbook / internal sheet...)"
+    ),
+) -> None:
+    """Curate a Chinese name for a compound. Manual curation only — the tool never
+    guesses or translates; a missing name stays missing."""
+    try:
+        key, how = _zh_key_for(identifier)
+    except pubchem.PubChemError as e:
+        typer.echo(f"cannot key the curation: identifier not resolvable ({e})")
+        raise typer.Exit(1) from e
+    entry = _zhnames().add(key, name_zh, source)
+    typer.echo(f"curated {entry.identifier} -> {entry.name_zh} ({entry.added}) [{how}]")
+
+
+@zhname_app.command("list")
+def zhname_list() -> None:
+    entries = _zhnames().list()
+    if not entries:
+        typer.echo("(no curated Chinese names)")
+        return
+    for e in entries:
+        src = f"  # 来源: {e.source}" if e.source else ""
+        typer.echo(f"{e.identifier:16} {e.name_zh}{src}")
+
+
+@zhname_app.command("show")
+def zhname_show(identifier: str = typer.Argument(..., help="compound identifier")) -> None:
+    reg = _zhnames()
+    e = reg.get(identifier)
+    if e is None:
+        try:
+            key, _how = _zh_key_for(identifier)
+        except pubchem.PubChemError:
+            key = None
+        if key is not None:
+            e = reg.get(key)
+    if e is None:
+        typer.echo(
+            f"no curated Chinese name for {identifier.upper()} "
+            "(missing = missing, not guessed)"
+        )
+        raise typer.Exit(1)
+    typer.echo(f"identifier : {e.identifier}")
+    typer.echo(f"name_zh    : {e.name_zh}")
+    typer.echo(f"source     : {e.source or '(none)'}")
+    typer.echo(f"added      : {e.added or '(unknown)'}")
+
+
+@zhname_app.command("remove")
+def zhname_remove(identifier: str = typer.Argument(..., help="compound identifier")) -> None:
+    reg = _zhnames()
+    ok = reg.remove(identifier)
+    if not ok:
+        try:
+            key, _how = _zh_key_for(identifier)
+            ok = key != identifier.strip().upper() and reg.remove(key)
+        except pubchem.PubChemError:
+            pass
+    typer.echo(f"removed {identifier.upper()}" if ok else f"{identifier.upper()} not in curation")
+    raise typer.Exit(0 if ok else 1)
 
 
 @cache_app.command()

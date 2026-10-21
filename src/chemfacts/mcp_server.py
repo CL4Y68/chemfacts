@@ -1,6 +1,6 @@
 """MCP server: expose chemfacts as standard MCP tools.
 
-Any MCP client (Claude Code, Codex, Zed, Hermes, agent harnesses, ...) can
+Any MCP client (Claude Code, Codex, ZCode, Hermes, agent harnesses, ...) can
 register this server, and LLMs then verify chemical facts by provenance
 instead of by memory.
 
@@ -105,6 +105,15 @@ def chemfacts_resolve(identifier: str) -> dict:
     if entry is not None:
         out["pinned_via_alias"] = entry.identifier
         out["alias_note"] = entry.note
+    key = ident.cas if ident.cas else (str(ident.cid) if ident.cid is not None else "")
+    if key:
+        abbrs = [e.alias for e in f.aliases.aliases_for(key)]
+        if abbrs:
+            out["registered_abbrevs"] = abbrs
+    zh = f.zhnames.find(ident.cas, ident.cid)
+    if zh is not None:
+        out["name_zh"] = zh.name_zh
+        out["name_zh_source"] = zh.source
     return out
 
 

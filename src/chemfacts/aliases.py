@@ -103,3 +103,16 @@ class AliasRegistry:
         alias, otherwise the input unchanged."""
         entry = self.get(identifier)
         return entry.identifier if entry is not None else identifier
+
+    def aliases_for(self, identifier: str) -> list[AliasEntry]:
+        """Reverse direction: every registered abbreviation pinned to this
+        compound (given as its pinned identifier, e.g. a CAS or CID).
+
+        This is what makes "compound -> common abbreviations" answerable:
+        THF and tetrahydrofuran can both be pins to 109-99-9, and both
+        abbreviations come back here. No abbreviation is ever invented —
+        only pins the user registered are listed.
+        """
+        target = identifier.strip().upper()
+        found = [e for e in self._entries.values() if e.identifier.strip().upper() == target]
+        return sorted(found, key=lambda e: e.alias)

@@ -12,11 +12,12 @@ Query PubChem, cross-check sources, never fabricate.
 """
 
 from .aliases import AliasEntry, AliasRegistry
-from .core import ChemFacts, card_to_json, card_to_markdown
+from .core import ChemFacts, card_to_json, card_to_markdown, export_rows
 from .model import CompoundIdentity, FactCard, PropertyValue, VerifyResult
 from .pubchem import PubChemClient, PubChemError
+from .zhnames import ZhNameEntry, ZhNameRegistry
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     "ChemFacts",
@@ -28,6 +29,9 @@ __all__ = [
     "PubChemError",
     "AliasEntry",
     "AliasRegistry",
+    "ZhNameEntry",
+    "ZhNameRegistry",
+    "export_rows",
     "card_to_json",
     "card_to_markdown",
     "__version__",

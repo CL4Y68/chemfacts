@@ -116,7 +116,8 @@ docker run -d -p 8000:8000 -v chemfacts-data:/data chemfacts-mcp
 | `resolve` | 0=成功 |
 | `verify` | 0=CONFIRMED，1=MISMATCH / NOT_FOUND |
 | `crosscheck` | 0=VERIFIED / UNVERIFIED，2=CONFLICT |
-| `lookup` / `card` / `alias` / `cache` | 0=成功 |
+| `lookup` / `card` / `alias` / `cache` / `export` | 0=成功 |
+| `zhname` | 0=成功（条目命中/变更），1=未录入 |
 
 ---
 
@@ -348,7 +349,57 @@ NMP        -> 872-50-4   # N-methyl-2-pyrrolidone (solvent)
 （5124-30-1），明确排除了同名的 1,12-二异氰酸酯十二烷（13879-35-1）。把 CAS 丢进
 PubChem 搜，两个物质的分子式/MW 不同，你就看到钉位为什么必要。
 
-### 4.8 `mcp` — 让任意支持 MCP 的 agent 用它
+### 4.8 `export` — 总对应表（缩写 | 中文名 | 英文名 | 物性）
+
+一条命令生成"化学物质-中文名-英文名-缩写-分子量-熔沸点"总表：对给定的物质清单，
+输出 缩写 → 中文名 → 英文名 → IUPAC → CAS → CID → 分子式 → 分子量 → 熔点/沸点/闪点/密度，
+每个物性值都带来源清单。
+
+- **联网优先**：本地检索库空了、过期了都不影响出表——缺什么就地拉 PubChem（本地库只是
+  TTL 加速器，不是事实来源）。`--fresh` 强制本次全部现拉。
+- **人工列只认注册表**：缩写列、中文名列只来自 `aliases.json` + `zhnames.json`，
+  没录入就是空格，绝不猜。
+- 解析不出的物质以 `(unresolved: …)` 行明示，不悄悄丢掉。
+
+真实输出（THF 行）：
+
+```
+$ chemfacts export tetrahydrofuran --format md
+| 缩写 | 中文名 | 英文名 | IUPAC | CAS | CID | 分子式 | 分子量 | … | 熔点 | … |
+|  | 四氢呋喃 | Tetrahydrofuran | oxolane | 109-99-9 | 8028 | C4H8O | 72.11 g/mol | … | -108.3 °C ; … | … |
+```
+
+```
+# 全注册表 + 指定物质，CSV 落盘，联网现拉：
+chemfacts export --all-aliases tetrahydrofuran "4,4'-diphenylmethanediisocyanate" \
+    --format csv --out map.csv --fresh
+```
+
+### 4.9 `zhname` — 维护中文名（PubChem 不提供中文名，本工具也绝不编造）
+
+`zhnames.json`（默认 `~/.cache/chemfacts/zhnames.json`，`CHEMFACTS_ZHNAMES` 可覆盖）存
+**用户核实过的**中文名，以 CAS（优先）或 CID 为键——与 `aliases.json` 同一标识空间，
+两个文件对"哪个物质"的说法永远一致。`add` 时若给的是名称/缩写，会先走 PubChem 解析，
+按解析出的 CAS 落库，并记录你核实该名的出处（`--source`）。
+
+```
+$ chemfacts zhname add THF 四氢呋喃 --source "通用名 (common name)"
+curated 109-99-9 -> 四氢呋喃 (2026-10-21) [resolved to Tetrahydrofuran (109-99-9)]
+
+$ chemfacts zhname show THF
+identifier : 109-99-9
+name_zh    : 四氢呋喃
+source     : 通用名 (common name)
+
+$ chemfacts zhname list
+109-99-9           四氢呋喃  # 来源: 通用名 (common name)
+```
+
+录入后，中文名会出现在 `resolve` 输出、事实卡片（Obsidian/MD/JSON）、MCP 工具返回
+（`name_zh`、`name_zh_source`、`registered_abbrevs`）以及 `export` 总表的中文名列。
+没录入的物质就是空格——缺就是缺，不猜。
+
+### 4.10 `mcp` — 让任意支持 MCP 的 agent 用它
 
 作用：把上面 6 个能力（resolve/lookup/crosscheck/verify/card/alias）以 MCP 工具形式暴露，
 Claude Code、Codex、ZCode、Hermes 等任一 MCP 客户端都能按溯源方式查化学事实，而不是靠

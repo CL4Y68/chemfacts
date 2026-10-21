@@ -14,6 +14,7 @@ from .aliases import AliasRegistry
 from .cache import FactCache
 from .model import CompoundIdentity, FactCard, PropertyValue, VerifyResult
 from .pubchem import PubChemClient, PubChemError
+from .zhnames import ZhNameRegistry
 
 # CLI slugs -> PUG View headings
 PROPERTY_ALIASES = {
@@ -64,11 +65,13 @@ class ChemFacts:
         cache: FactCache | None = None,
         ttl_days: int = 30,
         aliases: AliasRegistry | None = None,
+        zhnames: ZhNameRegistry | None = None,
     ):
         self.client = client or PubChemClient()
         self.cache = cache or FactCache()
         self.ttl_days = ttl_days
         self.aliases = aliases or AliasRegistry()
+        self.zhnames = zhnames or ZhNameRegistry()
 
     # -- identity -----------------------------------------------------------
 
@@ -264,6 +267,23 @@ class ChemFacts:
             if entry.note:
                 note += f" ({entry.note})"
             card.notes.append(note)
+        # reverse direction: every registered abbreviation pinned to this
+        # compound (CAS match), so "compound -> common abbreviations" is
+        # answered from the registry, never invented
+        if ident.cas:
+            reverse = [e.alias for e in self.aliases.aliases_for(ident.cas)]
+            for a in reverse:
+                if a not in card.aliases:
+                    card.aliases.append(a)
+        # curated Chinese name (registry only; missing = empty, never guessed)
+        zh = self.zhnames.find(ident.cas, ident.cid)
+        if zh is not None:
+            card.name_zh = zh.name_zh
+            card.name_zh_source = zh.source
+            note = f"中文名: {zh.name_zh}"
+            if zh.source:
+                note += f"（来源: {zh.source}）"
+            card.notes.append(note)
         statuses = []
         for slug in props:
             values, status = self.crosscheck(identifier, slug)
@@ -408,6 +428,8 @@ def card_to_markdown(card: FactCard, obsidian: bool = False) -> str:
         ]
         if card.aliases:
             frontmatter.append(f"aliases: {json.dumps(sorted(card.aliases), ensure_ascii=False)}")
+        if card.name_zh:
+            frontmatter.append(f'name_zh: "{card.name_zh}"')
         lines.extend(
             frontmatter
             + [
@@ -424,6 +446,19 @@ def card_to_markdown(card: FactCard, obsidian: bool = False) -> str:
                 f"- SMILES: `{i.canonical_smiles or 'n/a'}`",
                 "",
             ]
+            + (
+                [
+                    f"- 中文名: {card.name_zh}"
+                    + (
+                        f"（来源: {card.name_zh_source}）"
+                        if card.name_zh_source
+                        else "（人工录入）"
+                    ),
+                    "",
+                ]
+                if card.name_zh
+                else []
+            )
         )
         for group, heads in _OBSIDIAN_GROUPS:
             lines.append(f"## {group}")
@@ -456,6 +491,12 @@ def card_to_markdown(card: FactCard, obsidian: bool = False) -> str:
         lines.append(f"- Aliases (registry-pinned): {', '.join(sorted(card.aliases))}")
         lines.append("")
     lines.append(f"- IUPAC: {i.iupac_name or 'n/a'}")
+    if card.name_zh:
+        zh_line = f"- 中文名: {card.name_zh}"
+        zh_line += (
+            f"（来源: {card.name_zh_source}）" if card.name_zh_source else "（人工录入）"
+        )
+        lines.append(zh_line)
     mw_text = f"{i.molecular_weight} g/mol" if i.molecular_weight is not None else "n/a"
     lines.append(f"- Formula: `{i.formula or 'n/a'}` | MW: {mw_text}")
     lines.append(f"- SMILES: `{i.canonical_smiles or 'n/a'}`")
@@ -478,6 +519,8 @@ def card_to_json(card: FactCard) -> str:
     i = card.identity
     payload = {
         "identity": i.__dict__,
+        "name_zh": card.name_zh,
+        "name_zh_source": card.name_zh_source,
         "status": card.status,
         "aliases": card.aliases,
         "notes": card.notes,
@@ -487,3 +530,127 @@ def card_to_json(card: FactCard) -> str:
         },
     }
     return json.dumps(payload, indent=2, ensure_ascii=False)
+
+
+# -- export: correspondence table (abbreviation | Chinese name | English name | CAS | ...) ----
+
+#: (slug, PUG View heading, human column label) pulled for each row
+EXPORT_PROPERTIES = (
+    ("melting-point", "Melting Point", "熔点"),
+    ("boiling-point", "Boiling Point", "沸点"),
+    ("flash-point", "Flash Point", "闪点"),
+    ("density", "Density", "密度"),
+)
+
+
+def _dedup(seq: list[str]) -> list[str]:
+    out: list[str] = []
+    for s in seq:
+        if s and s not in out:
+            out.append(s)
+    return out
+
+
+def _value_cell(values: list[PropertyValue]) -> tuple[str, str]:
+    """(compact value cell, source cell). Missing values stay 'no source found'."""
+    if not values:
+        return "(no source found)", ""
+    shown = [v.value for v in values[:3]]
+    cell = " ; ".join(shown)
+    if len(values) > 3:
+        cell += f" (+{len(values) - 3} more)"
+    return cell, ", ".join(_dedup([v.source_name for v in values]))
+
+
+def export_rows(
+    facts: ChemFacts,
+    subjects: list[str],
+    fresh: bool = False,
+) -> list[dict]:
+    """Correspondence table: abbreviation | Chinese name | English name | CAS |
+    CID | formula | MW | melting point | boiling point | flash point | density.
+
+    Online-first: the local cache is only a TTL accelerator, not the source
+    of truth — with an empty or stale DB every row is still answered by
+    pulling PubChem (``fresh=True`` forces that pull for this run).
+
+    Provenance discipline for every column:
+    - curation columns (abbreviation, Chinese name) come from the user's
+      registries only — never guessed; empty cell = not curated
+    - property values are PubChem-sourced; a missing property is reported
+      explicitly, never filled in
+    - duplicate subjects (same CID) merge into one row with combined inputs
+    """
+    use_cache = not fresh
+    rows: dict[object, dict] = {}
+    order: list[object] = []
+
+    for subject in subjects:
+        try:
+            ident = facts.resolve(subject, use_cache=use_cache)
+        except PubChemError as e:
+            key = f"err:{subject}"
+            row = {
+                "input": subject,
+                "unresolved": True,
+                "error": str(e),
+            }
+            rows[key] = row
+            if key not in order:
+                order.append(key)
+            continue
+
+        # merge duplicates of the same compound into one row
+        key = ident.cid if ident.cid is not None else (ident.name or subject)
+        if key in rows and not rows[key].get("unresolved"):
+            row = rows[key]
+            if subject not in row["inputs"]:
+                row["inputs"].append(subject)
+            continue
+        row: dict = {
+            "input": subject,
+            "inputs": [subject],
+            "unresolved": False,
+            "name_en": ident.name or ident.title or subject,
+            "iupac": ident.iupac_name or "",
+            "cas": ident.cas or "",
+            "cid": ident.cid or "",
+            "formula": ident.formula or "",
+            "accessed_at": ident.accessed_at,
+        }
+        if ident.molecular_weight is not None:
+            row["mw"] = f"{ident.molecular_weight} g/mol"
+            row["mw_source"] = "PubChem PUG REST (computed from formula)"
+        else:
+            row["mw"] = ""
+            row["mw_source"] = ""
+        # curation columns: registries only, never invented
+        if ident.cas:
+            row["abbrevs"] = [e.alias for e in facts.aliases.aliases_for(ident.cas)]
+        elif ident.cid is not None:
+            row["abbrevs"] = [e.alias for e in facts.aliases.aliases_for(str(ident.cid))]
+        else:
+            row["abbrevs"] = []
+        zh = facts.zhnames.find(ident.cas, ident.cid)
+        row["name_zh"] = zh.name_zh if zh else ""
+        row["name_zh_source"] = (zh.source if zh else "")
+        for slug, heading, _label in EXPORT_PROPERTIES:
+            values = facts.lookup(subject, slug, use_cache=use_cache)
+            cell, sources = _value_cell(values)
+            row[slug] = cell
+            row[f"{slug}_source"] = sources
+            row.setdefault("properties", {})[heading] = [
+                {
+                    "value": v.value,
+                    "source": v.source_name,
+                    "reference_number": v.reference_number,
+                    "kind": v.kind,
+                    "accessed_at": v.accessed_at,
+                }
+                for v in values
+            ]
+        rows[key] = row
+        if key not in order:
+            order.append(key)
+
+    return [rows[k] for k in order]

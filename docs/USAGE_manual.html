@@ -449,6 +449,21 @@ aliases: ["NMP"]
 <span class="k">docker run -d -p 8000:8000 -v chemfacts-data:/data chemfacts-mcp</span>
 <span class="c"># 各 agent 指向 http://&lt;host&gt;:8000/mcp；/data 卷就是共享检索库（facts.db + aliases.json）</span></pre>
 <div class="note data"><span class="cap">已修复（commit 34b4be4）</span>：stdio 模式下启动横幅原先写进 stdout，污染 JSON-RPC 流（客户端日志 <i>"Failed to parse JSONRPC message"</i>）；现仅 http 模式打印横幅，stdio 握手干净。另注：宿机跑全局 HTTP 代理时，访问本地 MCP 服务需设 <code>NO_PROXY=127.0.0.1,localhost</code>。</div>
+<h3>功能九 · export：总对应表（缩写 → 中文名 → 英文名 → 物性，一表出全）</h3>
+<p>一条命令生成"物质-中文名-英文名-缩写-分子量-熔沸点"总表：对一批物质输出 缩写 → 中文名 → 英文名 → IUPAC → CAS → CID → 分子式 → 分子量 → 熔点/沸点/闪点/密度，每个物性值都带<b>来源清单</b>。三个纪律：① <b>联网优先</b>——本地库空了、过期了都不影响出表，缺什么就地拉 PubChem（本地库只是 TTL 加速器，不是事实来源；<code>--fresh</code> 强制现拉）；② <b>人工列只认注册表</b>——缩写列/中文名列只来自 <code>aliases.json</code> + <code>zhnames.json</code>，没录入就是空格，绝不猜；③ 解析不出的物质以 <code>(unresolved: …)</code> 行明示，不悄悄丢掉。</p>
+<pre><span class="k">$ chemfacts export tetrahydrofuran --format md</span>
+| 缩写 | 中文名 | 英文名 | IUPAC | CAS | CID | 分子式 | 分子量 | … | 熔点 | … |
+|  | 四氢呋喃 | Tetrahydrofuran | oxolane | 109-99-9 | 8028 | C4H8O | 72.11 g/mol | … | -108.3 °C ; … | … |
+<span class="c"># 全注册表 + 指定物质，CSV 落盘，联网现拉：</span>
+<span class="k">$ chemfacts export --all-aliases tetrahydrofuran "4,4'-diphenylmethanediisocyanate" \
+    --format csv --out map.csv --fresh</span></pre>
+<h3>功能十 · zhname：维护中文名（PubChem 不提供中文名，本工具也绝不编造）</h3>
+<p><code>zhnames.json</code>（默认 <code>~/.cache/chemfacts/zhnames.json</code>，<code>CHEMFACTS_ZHNAMES</code> 可覆盖）存<b>用户核实过的</b>中文名，以 CAS（优先）或 CID 为键——与 <code>aliases.json</code> 同一标识空间，两个文件对"哪个物质"的说法永远一致。给 <code>add</code> 名称/缩写会先走 PubChem 解析、按其 CAS 落库，并记录核实出处（<code>--source</code>）。</p>
+<pre><span class="k">$ chemfacts zhname add THF 四氢呋喃 --source "通用名 (common name)"</span>
+curated 109-99-9 -> 四氢呋喃 (2026-10-21) [resolved to Tetrahydrofuran (109-99-9)]
+<span class="k">$ chemfacts zhname list</span>
+109-99-9           四氢呋喃  # 来源: 通用名 (common name)</pre>
+<div class="note data"><span class="cap">中文名的落点</span>：录入后自动出现在 <code>resolve</code> 输出、事实卡片（Obsidian/MD/JSON）、MCP 工具返回（<code>name_zh</code>、<code>name_zh_source</code>、<code>registered_abbrevs</code>）与 <code>export</code> 总表的中文名列。没录入 = 空格，缺就是缺，不猜。</div>
 
 <!-- ============ P7 工作流 ============ -->
 <div class="pagebreak"></div>

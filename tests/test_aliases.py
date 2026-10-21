@@ -45,6 +45,16 @@ def test_pin_passthrough_for_unknown(reg):
     assert reg.pin("nmp") == "872-50-4"
 
 
+def test_aliases_for_reverse(reg):
+    """compound -> registered abbreviations (the direction 'what is it called')."""
+    reg.add("THF", "109-99-9", "tetrahydrofuran (solvent)")
+    reg.add("THF-d8", "109-99-9", "deuterated")
+    reg.add("NMP", "872-50-4")
+    assert [e.alias for e in reg.aliases_for("109-99-9")] == ["THF", "THF-D8"]
+    assert [e.alias for e in reg.aliases_for("872-50-4")] == ["NMP"]
+    assert reg.aliases_for("000-00-0") == []
+
+
 @pytest.fixture()
 def alias_facts(tmp_path, monkeypatch):
     monkeypatch.setenv("CHEMFACTS_ALIASES", str(tmp_path / "a.json"))

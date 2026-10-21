@@ -62,6 +62,8 @@ class FactCard:
     status: str = "verified"  # verified | unverified | conflict
     accessed_at: str = field(default_factory=_now)
     aliases: list[str] = field(default_factory=list)  # registered abbreviations pinned here
+    name_zh: str = ""  # curated Chinese name (registry only; empty = not curated, never guessed)
+    name_zh_source: str = ""  # where the user verified the Chinese name
 
 
 @dataclass
