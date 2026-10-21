@@ -9,6 +9,12 @@ both humans and LLMs quietly get things wrong *confidently* — a mis-copied dig
 value remembered from the wrong compound, "a literature value". chemfacts exists to
 make that failure mode impossible.
 
+Anything that identifies a compound works: CAS number, CID, SMILES, InChI(Key), IUPAC
+name, or a pinned abbreviation — `chemfacts resolve 872-50-4` returns the full identity
+of NMP (CID 13387) in one step. The CAS is the anchor between all identifier forms:
+cards, the correspondence table and both registries are keyed on it, so one compound
+stays one compound at every exit.
+
 [English](README.md) | [中文文档](README_zh.md)
 
 > **Pick it up and use it?** Read the [User Manual](docs/USAGE.md) /
