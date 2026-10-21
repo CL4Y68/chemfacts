@@ -206,7 +206,7 @@ flowchart LR
     CLI --> CORE
     M["mcp_server.py<br/>stdio + streamable-http<br/>任意 MCP 客户端"]:::mcp
     CORE --> M
-    M --> AG["agents · Claude Code · Codex · Zed · Hermes …"]:::ext
+    M --> AG["agents · Claude Code · Codex · ZCode · Hermes …"]:::ext
     CORE --> P["pubchem.py<br/>PUG REST + PUG View 客户端<br/>限流 · 重试 · 4xx → PubChemError"]:::proc
     CORE --> CA["cache.py<br/>SQLite: identity / value / ref<br/>TTL · 重载保留溯源"]:::store
     CORE --> AL["aliases.py<br/>JSON 注册表<br/>缩写 → CAS + 注释"]:::store
@@ -282,7 +282,7 @@ detail : claim 110.0 not confirmed; closest sourced value: 99.13 g/mol (PubChem 
 ## 让任意 agent 使用：MCP 服务
 
 chemfacts 内置 [MCP](https://modelcontextprotocol.io) 服务，**任何支持 MCP 的
-agent（Claude Code、Codex、Zed、Hermes、各种 agent harness…）都能按溯源方式查证
+agent（Claude Code、Codex、ZCode、Hermes、各种 agent harness…）都能按溯源方式查证
 化学事实**。暴露 6 个工具：`chemfacts_resolve`、`chemfacts_lookup`、
 `chemfacts_crosscheck`、`chemfacts_verify`、`chemfacts_card`、`chemfacts_alias`。
 

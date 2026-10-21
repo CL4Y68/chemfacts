@@ -227,7 +227,7 @@ flowchart LR
     CLI --> CORE
     M["mcp_server.py<br/>stdio + streamable-http<br/>any MCP client"]:::mcp
     CORE --> M
-    M --> AG["agents · Claude Code · Codex · Zed · Hermes …"]:::ext
+    M --> AG["agents · Claude Code · Codex · ZCode · Hermes …"]:::ext
     CORE --> P["pubchem.py<br/>PUG REST + PUG View client<br/>throttled · retried · 4xx → PubChemError"]:::proc
     CORE --> CA["cache.py<br/>SQLite: identity / value / ref<br/>TTL · provenance kept on reload"]:::store
     CORE --> AL["aliases.py<br/>JSON registry<br/>abbreviation → CAS + note"]:::store
@@ -305,7 +305,7 @@ detail : claim 110.0 not confirmed; closest sourced value: 99.13 g/mol (PubChem 
 ## Use from any agent: MCP server
 
 chemfacts ships an [MCP](https://modelcontextprotocol.io) server, so *any*
-MCP-capable agent (Claude Code, Codex, Zed, Hermes, agent harnesses, ...) can
+MCP-capable agent (Claude Code, Codex, ZCode, Hermes, agent harnesses, ...) can
 verify chemical facts by provenance. Six tools are exposed:
 `chemfacts_resolve`, `chemfacts_lookup`, `chemfacts_crosscheck`,
 `chemfacts_verify`, `chemfacts_card`, `chemfacts_alias`.
