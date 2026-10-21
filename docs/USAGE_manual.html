@@ -70,7 +70,7 @@ h4.sub { font-size:10pt; color:#2b3f5c; margin:8pt 0 3pt; }
 <h1>chemfacts · 溯源优先化学事实查证 · 使用手册</h1>
 <div class="subtitle">面向使用者的功能说明、操作指引与可复核证据</div>
 <div style="margin:6pt 0 2pt">
-<span class="tagline">版本 v0.4.0 · commit 11b1b54</span>
+<span class="tagline">版本 v0.5.0 · commit 2b28008</span>
 <span class="tagline">环境 Windows · Python 3.11.15 (venv)</span>
 <span class="tagline">缓存快照 2026-10-21 · TTL 30 天</span>
 </div>
@@ -134,7 +134,7 @@ h4.sub { font-size:10pt; color:#2b3f5c; margin:8pt 0 3pt; }
 <div class="all"><div class="n">6</div><div class="l">MCP 工具<br>(resolve/lookup/crosscheck/verify/card/alias)</div></div>
 </div>
 
-<div class="note"><span class="cap">证据快照</span>：本手册所有输出抓自<b>同一缓存快照</b>（v0.4.0 · facts.db · 2026-10-21 13:30 UTC 拉取 · identity 14 / value 224 / ref 1227 · 别名 13 条 · 中文名 1 条）。TTL（30 天）内重跑各命令，数值与来源逐字一致，仅 <code>accessed</code> 日期可能刷新；<code>cache clear</code> 后重新拉取，应只有日期变化——这是第 4 节"复现指引"的核对基准。</div>
+<div class="note"><span class="cap">证据快照</span>：本手册所有输出抓自<b>同一缓存快照</b>（v0.5.0 · facts.db · 2026-10-21 13:30 UTC 拉取 · identity 14 / value 224 / ref 1227 · 别名 13 条 · 中文名 1 条）。TTL（30 天）内重跑各命令，数值与来源逐字一致，仅 <code>accessed</code> 日期可能刷新；<code>cache clear</code> 后重新拉取，应只有日期变化——这是第 4 节"复现指引"的核对基准。</div>
 
 <!-- ============ P2 查证核心·原理 ============ -->
 <div class="pagebreak"></div>
@@ -538,13 +538,13 @@ PTMG-2000      Polytetramethylene glycol (PTMEG-2000) · CAS 25268-40-0 · 2000 
 </table>
 
 <h3>复现指引（全部输出可逐步复核）</h3>
-<pre><span class="c"># 环境：Windows · Python 3.11.15 (项目 .venv) · 仓库 CL4Y68/chemfacts @ 11b1b54（v0.4.0）</span>
+<pre><span class="c"># 环境：Windows · Python 3.11.15 (项目 .venv) · 仓库 CL4Y68/chemfacts @ 2b28008（v0.5.0）</span>
 <span class="c"># 安装：pip install chemfacts（或 uv tool install chemfacts；开发态 uv run chemfacts）</span>
 <span class="c"># 检索库：~/.cache/chemfacts/facts.db + aliases.json + zhnames.json（手册证据快照：14 / 224 / 1227 / 13 条 / 1 条，2026-10-21）</span>
 <span class="c"># 逐条复现：按 §1-§2 各命令重跑，TTL 内输出与手册逐字一致（仅日期行允许刷新）；</span>
 <span class="c"># export 联网优先：即使本地库清空，总表仍可现拉 PubChem 生成（--fresh 强制现拉）。</span>
 <span class="c"># 判定与退出码口径见 §1 三张表与 §4 边界表。线上阅读：https://cl4y68.github.io/chemfacts/docs/USAGE_manual.html（GitHub Pages）</span></pre>
-<footer>本手册：chemfacts v0.4.0 使用手册 · 面向使用者 · 全部功能输出为同一缓存快照（2026-10-21）的真实运行结果，可按第 4 节路径逐步复现 · computed 值、CONFLICT 状态与中文名列 fail-closed 的含义边界已在 §4 逐项声明</footer>
+<footer>本手册：chemfacts v0.5.0 使用手册 · 面向使用者 · 全部功能输出为同一缓存快照（2026-10-21）的真实运行结果，可按第 4 节路径逐步复现 · computed 值、CONFLICT 状态、中文名列 fail-closed 与手工条目标记的含义边界已在 §4 逐项声明</footer>
 
 </body>
 </html>
