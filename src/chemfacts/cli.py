@@ -225,7 +225,8 @@ def mcp(
     """Run the MCP server so any MCP client (Claude Code, Codex, ...) can use chemfacts."""
     from .mcp_server import main as run_mcp_server
 
-    typer.echo(f"serving MCP over {transport} (host={host}, port={port}, path={path})")
+    if transport != "stdio":
+        typer.echo(f"serving MCP over {transport} (host={host}, port={port}, path={path})")
     run_mcp_server(transport, host, port, path)
 
 

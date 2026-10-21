@@ -16,7 +16,7 @@ from .core import ChemFacts, card_to_json, card_to_markdown
 from .model import CompoundIdentity, FactCard, PropertyValue, VerifyResult
 from .pubchem import PubChemClient, PubChemError
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "ChemFacts",
