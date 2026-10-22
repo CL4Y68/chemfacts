@@ -64,11 +64,13 @@ identifier -> [alias registry pin] -> PubChem (identity + values) -> local cache
 **CLI / library (pick one)**
 
 ```bash
-# primary: install from GitHub
+# primary: install from PyPI
+pip install chemfacts
+# alternative: install from GitHub (latest dev)
 git clone https://github.com/CL4Y68/chemfacts.git
 cd chemfacts
 pip install .
-# one-liner alternative
+# or one-liner
 pip install git+https://github.com/CL4Y68/chemfacts
 # or (this repo, dev mode)
 uv run chemfacts --help

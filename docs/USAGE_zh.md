@@ -53,10 +53,12 @@
 
 ## 2. 安装
 
-**CLI / 库（三选一）**
+**CLI / 库（四选一）**
 
 ```bash
-# 主渠道：从 GitHub 安装
+# 主渠道：从 PyPI 安装
+pip install chemfacts
+# 备选：从 GitHub 装（PyPI 发版前的最新开发版）
 git clone https://github.com/CL4Y68/chemfacts.git
 cd chemfacts
 pip install .
