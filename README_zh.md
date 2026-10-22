@@ -248,7 +248,7 @@ flowchart LR
 | `chemfacts alias add\|list\|show\|remove` | 管理缩写 → 物质注册表 |
 | `chemfacts cache clear\|show` | 管理本地 SQLite 事实缓存 |
 
-属性 slug：`flash-point`、`boiling-point`、`melting-point`、`density`、`solubility`、`vapor-pressure`、`autoignition-point`、`explosive-limits`、`surface-tension`、`viscosity`、`mw`、`formula`。
+属性 slug：`flash-point`、`boiling-point`、`melting-point`、`vaporization-enthalpy`（前三者同时与 NIST WebBook 交叉核对）、`density`、`solubility`、`vapor-pressure`、`autoignition-point`、`explosive-limits`、`surface-tension`、`viscosity`、`mw`、`formula`。
 
 ## 安装
 
@@ -370,11 +370,17 @@ rows = export_rows(f, ["IPDI", "NMP"])        # -> 总对应表行（联网优�
 
 ## 数据来源
 
-v0.5 使用 **PubChem**（PUG REST 查身份，PUG View 查实测物性——聚合自 HSDB、ILO ICSC、
-EPA、CAMEO、NTP 等）。中文名来自你的 `zhnames.json` 人工库（PubChem 没有，也绝不
+v0.5.1 使用**两个独立数据库**：
+- **PubChem**——PUG REST 查身份，PUG View 查实测物性（聚合自 HSDB、ILO ICSC、
+  EPA、CAMEO、NTP 等，逐值带参考编号与来源名）
+- **NIST WebBook**——相变数据（沸点、熔点、汽化焓），每条带 TRC 文献引用
+  （作者、年份）。这三类物性的 `crosscheck` 现在比较的是**两个独立数据库**，
+  而不是一个数据库自己跟自己比
+
+中文名来自你的 `zhnames.json` 人工库（PubChem 没有，也绝不
 翻译/猜测）；PubChem 没有的物质（聚合物、混合物、商品级）可以按你核实的一手值
-原样记入 `manuals.json`，任何出口都带"人工条目"标记。第二来源交叉核对
-（NIST WebBook、GESTIS/ECHA）在路线图中。
+原样记入 `manuals.json`，任何出口都带"人工条目"标记。NIST 没有该 CAS 记录
+（或网络不可达）时，自动退回 PubChem 单源结果——查不到就报缺失，绝不补数。
 
 ## 路线图
 
@@ -382,7 +388,7 @@ EPA、CAMEO、NTP 等）。中文名来自你的 `zhnames.json` 人工库（PubC
 - [x] 缩写注册表：把含糊名称钉到一个物质（JSON，用户可编辑）
 - [x] 中文名人工库（`zhname`）+ 总对应表导出（`export`），联网优先
 - [x] 手工条目（`manual`）：PubChem 没有的物质按你核实的一手值原样入库，出口必带标记
-- [ ] NIST WebBook 作为第二来源（相变数据）
+- [x] NIST WebBook 作为第二来源（相变数据：沸点 / 熔点 / 汽化焓）
 - [ ] GESTIS / ECHA / 厂商 SDS 的权威闪点
 - [ ] `batch` 模式：一次核完配方里的全部试剂
 - [x] MCP server：stdio + streamable-http 双传输、Docker 镜像、6 个工具——任意 MCP 客户端可注册

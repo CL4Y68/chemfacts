@@ -7,6 +7,7 @@ fabricating plausible values.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 
@@ -14,6 +15,7 @@ from .aliases import AliasRegistry
 from .cache import FactCache
 from .manuals import ManualRegistry
 from .model import CompoundIdentity, FactCard, PropertyValue, VerifyResult
+from .nist import NistClient, NistError
 from .pubchem import PubChemClient, PubChemError
 from .zhnames import ZhNameRegistry
 
@@ -27,6 +29,9 @@ PROPERTY_ALIASES = {
     "melting-point": "Melting Point",
     "melting": "Melting Point",
     "mp": "Melting Point",
+    "vaporization-enthalpy": "Enthalpy of Vaporization",
+    "vaporization": "Enthalpy of Vaporization",
+    "dhvap": "Enthalpy of Vaporization",
     "density": "Density",
     "solubility": "Solubility",
     "vapor-pressure": "Vapor Pressure",
@@ -44,6 +49,12 @@ _IDENTITY_SOURCES = {
     "MolecularWeight": ("molecular_weight", "PubChem PUG REST (computed from formula)"),
     "MolecularFormula": ("formula", "PubChem PUG REST"),
 }
+
+# headings where an independent second source exists: NIST WebBook phase-change
+# measurements (boiling/melting points, enthalpy of vaporization). Values from
+# NIST are appended to the PubChem values so crosscheck() really compares two
+# independent databases; NIST rows are labelled and keep their own citation.
+_NIST_HEADINGS = {"Boiling Point", "Melting Point", "Enthalpy of Vaporization"}
 
 DEFAULT_CARD_PROPERTIES = [
     "Flash Point",
@@ -68,6 +79,7 @@ class ChemFacts:
         aliases: AliasRegistry | None = None,
         zhnames: ZhNameRegistry | None = None,
         manuals: ManualRegistry | None = None,
+        nist: NistClient | None = None,
     ):
         self.client = client or PubChemClient()
         self.cache = cache or FactCache()
@@ -75,6 +87,7 @@ class ChemFacts:
         self.aliases = aliases or AliasRegistry()
         self.zhnames = zhnames or ZhNameRegistry()
         self.manuals = manuals or ManualRegistry()
+        self.nist = nist or NistClient()
 
     # -- identity -----------------------------------------------------------
 
@@ -138,8 +151,28 @@ class ChemFacts:
                         v.source_name = refs.get(
                             v.reference_number, f"reference #{v.reference_number}"
                         )
+                # Caches written before the NIST second source carry no
+                # NIST rows — backfill them once (live fetch, fail-closed)
+                # so a TTL-fresh cache does not hide the new source.
+                nist_present = any(
+                    v.source_name.startswith("NIST WebBook") for v in cached
+                )
+                if heading in _NIST_HEADINGS and ident.cas and not nist_present:
+                    try:
+                        extra = self.nist.phase_change_rows(ident.cas, heading)
+                    except NistError:
+                        extra = []
+                    if extra:
+                        self.cache.save_values(ident.cid, extra)
+                        cached = cached + extra
                 return cached
         values = self.client.property_values(ident.cid, heading)
+        if heading in _NIST_HEADINGS and ident.cas:
+            # Independent second source: NIST WebBook phase-change
+            # measurements. Fail-closed — when NIST is unreachable or has no
+            # entry for this CAS the PubChem-only values are returned as is.
+            with contextlib.suppress(NistError):
+                values = values + self.nist.phase_change_rows(ident.cas, heading)
         if values:
             self.cache.save_values(ident.cid, values)
             # refresh reference map
@@ -368,7 +401,7 @@ def _comparable(value_str: str, heading: str) -> float | None:
 
 
 def _to_celsius(value_str: str, heading: str) -> float | None:
-    """Normalize a temperature value to Celsius (°F strings are converted).
+    """Normalize a temperature value to Celsius (°F and K strings converted).
 
     Returns None for non-temperature properties or non-numeric strings.
     """
@@ -380,6 +413,12 @@ def _to_celsius(value_str: str, heading: str) -> float | None:
     low = value_str.lower()
     if "°f" in low or low.startswith("f") or "deg f" in low:
         return (n - 32.0) * 5.0 / 9.0
+    # Kelvin: NIST WebBook rows are "339. K" / "165.1 K" — the K unit marker
+    # must be attached to a number (an optional trailing decimal point, e.g.
+    # "339. K", is allowed), so "…(Kirk-Othmer)" style citations never
+    # trigger a conversion. "kJ" / "kPa" stay out via the look-ahead.
+    if re.search(r"\d[.,]?\s*k(?![a-z])", low):
+        return n - 273.15
     return n
 
 

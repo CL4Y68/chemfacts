@@ -97,13 +97,21 @@ docker run -d -p 8000:8000 -v chemfacts-data:/data chemfacts-mcp
 闪点 ±1.5 °C、自燃 ±20 °C、密度 ±0.01 g/cm³；其余属性用 10% 相对阈值。
 闭杯（c.c.）与开杯（o.c.）天然不同，工具识别后不算冲突。
 
+### 3.1.1 数据来源（两个独立数据库）
+
+- **PubChem**——每个数值自带溯源：参考编号、来源名（HSDB、ILO ICSC、OSHA、NIOSH、CAMEO……）与访问日期。
+- **NIST WebBook（第二独立来源）**——`boiling-point`、`melting-point`、`vaporization-enthalpy` 三类物性，自动抓取 NIST WebBook 相变数据，追加为 `NIST WebBook（<文献引用>）` 行。`crosscheck` 因此比较的是**两个独立数据库**，而不是一个数据库自己跟自己比。每条 NIST 行保留 TRC 文献（作者、年份）与页面 URL，可复核。
+
+fail-closed：NIST 没有该 CAS 的记录、或网络不可达时，原样返回 PubChem 结果——查不到就是查不到，绝不补数。
+
 ### 3.2 物性 slug（CLI 用，映射到 PubChem PUG View 标题）
 
 | slug | PUG View 标题 |
 |---|---|
 | `flash-point` / `flash` | Flash Point |
-| `boiling-point` / `boiling` / `bp` | Boiling Point |
-| `melting-point` / `melting` / `mp` | Melting Point |
+| `boiling-point` / `boiling` / `bp` | Boiling Point（+ NIST WebBook T<sub>boil</sub>） |
+| `melting-point` / `melting` / `mp` | Melting Point（+ NIST WebBook T<sub>fus</sub>） |
+| `vaporization-enthalpy` / `vaporization` / `dhvap` | Enthalpy of Vaporization（NIST WebBook；PubChem 有时也有） |
 | `density` | Density |
 | `solubility` | Solubility |
 | `vapor-pressure` | Vapor Pressure |

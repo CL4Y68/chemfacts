@@ -15,10 +15,11 @@ from .aliases import AliasEntry, AliasRegistry
 from .core import ChemFacts, card_to_json, card_to_markdown, export_rows
 from .manuals import ManualEntry, ManualRegistry, new_entry
 from .model import CompoundIdentity, FactCard, PropertyValue, VerifyResult
+from .nist import NistClient, NistError
 from .pubchem import PubChemClient, PubChemError
 from .zhnames import ZhNameEntry, ZhNameRegistry
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 __all__ = [
     "ChemFacts",
@@ -28,6 +29,8 @@ __all__ = [
     "VerifyResult",
     "PubChemClient",
     "PubChemError",
+    "NistClient",
+    "NistError",
     "AliasEntry",
     "AliasRegistry",
     "ZhNameEntry",

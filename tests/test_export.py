@@ -7,7 +7,7 @@ from typer.testing import CliRunner
 
 from chemfacts import cli, core
 from chemfacts.cache import FactCache
-from tests.test_core import FakePubChem
+from tests.test_core import FakeNist, FakePubChem
 
 runner = CliRunner()
 
@@ -18,7 +18,7 @@ def facts(tmp_path, monkeypatch):
     monkeypatch.setenv("CHEMFACTS_ZHNAMES", str(tmp_path / "zhnames.json"))
     monkeypatch.setenv("CHEMFACTS_MANUALS", str(tmp_path / "manuals.json"))
     fake = FakePubChem()
-    f = core.ChemFacts(client=fake, cache=FactCache(str(tmp_path / "f.db")))
+    f = core.ChemFacts(client=fake, cache=FactCache(str(tmp_path / "f.db")), nist=FakeNist())
     # curation fixtures: one abbreviation pin + one Chinese-name curation per compound
     f.aliases.add("NMP", "872-50-4", note="solvent")
     f.aliases.add("THF", "109-99-9", note="solvent")

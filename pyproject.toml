@@ -1,6 +1,6 @@
 [project]
 name = "chemfacts"
-version = "0.5.0"
+version = "0.5.1"
 description = "Provenance-first chemical fact verification: query PubChem, cross-check sources, never fabricate. Export auditable, citable fact cards."
 readme = "README.md"
 authors = [

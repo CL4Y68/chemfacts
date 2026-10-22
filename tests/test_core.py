@@ -7,6 +7,7 @@ import pytest
 from chemfacts.cache import FactCache
 from chemfacts.core import ChemFacts, card_to_json, card_to_markdown
 from chemfacts.model import CompoundIdentity, PropertyValue
+from chemfacts.nist import NistError
 from chemfacts.pubchem import PubChemClient, PubChemError
 
 
@@ -61,12 +62,30 @@ class FakePubChem:
         return {}
 
 
+class FakeNist:
+    """Offline stand-in for NistClient.
+
+    Default: no NIST rows (keeps pre-0.5.1 behaviour in the other suites).
+    Pass rows={("872-50-4", "Boiling Point"): [PropertyValue, ...]} to inject
+    NIST-style rows, or fail=True to simulate an unreachable WebBook.
+    """
+
+    def __init__(self, rows: dict | None = None, fail: bool = False):
+        self.rows = rows or {}
+        self.fail = fail
+
+    def phase_change_rows(self, cas, heading):
+        if self.fail:
+            raise NistError("no network in fake")
+        return list(self.rows.get((cas, heading), []))
+
+
 @pytest.fixture()
 def facts(tmp_path, monkeypatch):
     monkeypatch.setenv("CHEMFACTS_ALIASES", str(tmp_path / "aliases.json"))
     fake = FakePubChem()
     cache = FactCache(str(tmp_path / "facts.db"))
-    yield ChemFacts(client=fake, cache=cache)
+    yield ChemFacts(client=fake, cache=cache, nist=FakeNist())
 
 
 # -- identity -------------------------------------------------------------

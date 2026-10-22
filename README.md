@@ -275,9 +275,10 @@ flowchart LR
 | `chemfacts alias add\|list\|show\|remove` | Manage the abbreviation → compound registry |
 | `chemfacts cache clear\|show` | Manage the local SQLite fact cache |
 
-Property slugs: `flash-point`, `boiling-point`, `melting-point`, `density`,
-`solubility`, `vapor-pressure`, `autoignition-point`, `explosive-limits`,
-`surface-tension`, `viscosity`, `mw`, `formula`.
+Property slugs: `flash-point`, `boiling-point`, `melting-point`,
+`vaporization-enthalpy` (all three also cross-checked against NIST WebBook),
+`density`, `solubility`, `vapor-pressure`, `autoignition-point`,
+`explosive-limits`, `surface-tension`, `viscosity`, `mw`, `formula`.
 
 ## Install
 
@@ -403,12 +404,20 @@ re-fetched — the provenance is never lost, only refreshed.
 
 ## Sources
 
-v0.5 uses **PubChem** (PUG REST for identity, PUG View for experimental property
-values aggregated from HSDB, ILO ICSC, EPA, CAMEO, NTP, …). Chinese names come from
+v0.5.1 uses **two independent databases**:
+- **PubChem** — PUG REST for identity, PUG View for experimental property values
+  aggregated from HSDB, ILO ICSC, EPA, CAMEO, NTP, …
+- **NIST WebBook** — phase-change measurements (boiling point, melting point,
+  enthalpy of vaporization), each row citing its TRC reference (author, year).
+  For those three properties `crosscheck` now compares two independent
+  databases instead of one database against itself.
+
+Chinese names come from
 your `zhnames.json` curation (PubChem has none; nothing is ever translated or
 guessed), and substances PubChem does not carry (polymers, blends, vendor grades)
 can be recorded verbatim in `manuals.json` — always visibly marked as user-curated.
-Second-source cross-checking (NIST WebBook, GESTIS/ECHA) is on the roadmap.
+When NIST has no record for a CAS (or is unreachable), the result degrades to
+PubChem-only — reported as missing, never invented.
 
 ## Roadmap
 
@@ -416,7 +425,7 @@ Second-source cross-checking (NIST WebBook, GESTIS/ECHA) is on the roadmap.
 - [x] Abbreviation registry: pin ambiguous names to one compound (JSON, user-editable)
 - [x] Chinese-name curation (`zhname`) + correspondence-table export (`export`), online-first
 - [x] Manual entries (`manual`) for substances PubChem does not carry — verbatim, always marked
-- [ ] NIST WebBook as a second source (phase-transition data)
+- [x] NIST WebBook as a second source (phase-change data: bp / mp / ΔvapH)
 - [ ] GESTIS / ECHA / vendor SDS for authoritative flash points
 - [ ] `batch` mode: verify a whole reagent list for a recipe in one pass
 - [x] MCP server: stdio + streamable-http transports, Docker image, six tools — register in any MCP client

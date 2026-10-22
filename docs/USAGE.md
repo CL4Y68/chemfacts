@@ -106,13 +106,29 @@ mp ±3 °C, bp ±2 °C, flash point ±1.5 °C, autoignition ±20 °C, density ±
 everything else uses a 10% relative threshold. Closed-cup (c.c.) vs open-cup (o.c.)
 differences are recognised and do not count as conflicts.
 
+### 3.1.1 Data sources (two independent databases)
+
+- **PubChem** — property values carry per-value provenance: reference number,
+  source name (HSDB, ILO ICSC, OSHA, NIOSH, CAMEO, …) and access date.
+- **NIST WebBook** (second, independent source) — for `boiling-point`,
+  `melting-point` and `vaporization-enthalpy`, phase-change measurements are
+  fetched from NIST WebBook and appended as `NIST WebBook (<citation>)` rows.
+  `crosscheck` then compares **two independent databases**, not one database
+  against itself. Each NIST row keeps its TRC reference (author, year) and the
+  page URL for re-verification.
+
+Fail-closed: when NIST has no record for the compound's CAS, or is
+unreachable, the PubChem-only result is returned unchanged — missing NIST data
+is reported as missing, never invented.
+
 ### 3.2 Property slugs (CLI, mapped to PubChem PUG View headings)
 
 | slug | PUG View heading |
 |---|---|
 | `flash-point` / `flash` | Flash Point |
-| `boiling-point` / `boiling` / `bp` | Boiling Point |
-| `melting-point` / `melting` / `mp` | Melting Point |
+| `boiling-point` / `boiling` / `bp` | Boiling Point (+ NIST WebBook T<sub>boil</sub>) |
+| `melting-point` / `melting` / `mp` | Melting Point (+ NIST WebBook T<sub>fus</sub>) |
+| `vaporization-enthalpy` / `vaporization` / `dhvap` | Enthalpy of Vaporization (NIST WebBook; PubChem when present) |
 | `density` | Density |
 | `solubility` | Solubility |
 | `vapor-pressure` | Vapor Pressure |

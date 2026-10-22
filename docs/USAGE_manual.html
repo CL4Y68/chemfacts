@@ -70,7 +70,7 @@ h4.sub { font-size:10pt; color:#2b3f5c; margin:8pt 0 3pt; }
 <h1>chemfacts · 溯源优先化学事实查证 · 使用手册</h1>
 <div class="subtitle">面向使用者的功能说明、操作指引与可复核证据</div>
 <div style="margin:6pt 0 2pt">
-<span class="tagline">版本 v0.5.0 · commit 2b28008</span>
+<span class="tagline">版本 v0.5.1 · NIST WebBook 第二来源（功能十二输出为 2026-10-22 在线运行）</span>
 <span class="tagline">环境 Windows · Python 3.11.15 (venv)</span>
 <span class="tagline">缓存快照 2026-10-21 · TTL 30 天</span>
 </div>
@@ -475,6 +475,20 @@ recorded PTMG-2000 (2026-10-21); verify values against supplier COA, lot 2026-08
 <span class="k">$ chemfacts manual list</span>
 PTMG-2000      Polytetramethylene glycol (PTMEG-2000) · CAS 25268-40-0 · 2000 (COA)  # 出处: supplier COA, lot 2026-08
 <span class="c"># export PTMG-2000 → 总表多出该物质一行，英文名列带"（人工条目 · 无 PubChem 记录）"，备注列带 COA 出处</span></pre>
+<h3>功能十二 · NIST WebBook 第二来源（沸点 / 熔点 / 汽化焓）</h3>
+<p>v0.5.1 起，<code>boiling-point</code>、<code>melting-point</code> 与新增的 <code>vaporization-enthalpy</code>（别名 <code>dhvap</code>）三类物性，<code>lookup</code>/<code>crosscheck</code> 会在 PubChem 行之外自动追加 <b>NIST WebBook 相变实测</b>——两个独立数据库并列，每条 NIST 行带 TRC 文献（作者、年份）与页面 URL。NIST 查不到该 CAS 或网络不可达时，原样返回 PubChem 结果（fail-closed，不补数）。</p>
+<pre><span class="k">$ chemfacts lookup THF boiling-point</span>
+339. ± 1. K | NIST WebBook (TRC average of experimental values) | 2026-10-22
+65 °C | HSDB (ref #53, experimental) | 2026-10-21
+66 °C | ILO ICSC (ref #66, experimental) | 2026-10-21
+<span class="c"># …完整 8 行（OSHA / NIOSH / CAMEO / HSDB / ICSC / NIST）</span>
+<span class="k">$ chemfacts crosscheck THF boiling-point</span>
+status: VERIFIED  <span class="c"># NIST 339 K ≈ 65.85 °C，与 PubChem 各源 65–66 °C 互相印证</span>
+<span class="k">$ chemfacts lookup THF vaporization-enthalpy</span>
+29.81 kJ/mol at 339.1 K | NIST WebBook (Majer and Svoboda, 1985) | 2026-10-22
+32.16 kJ/mol | NIST WebBook (Majer and Svoboda, 1985) | 2026-10-22
+<span class="c"># …完整 15 行（Stephenson / Loras / Scott / Borisov 等独立测量）</span></pre>
+<div class="note data"><span class="cap">证据说明</span>：本小节输出为 2026-10-22 在线运行（v0.5.1 代码，直连 PubChem + NIST WebBook），不复用上方 §0 缓存快照。NIST 行只保留"点值测量"（含温度条件的 ΔvapH 与 ± 不确定度行）；拟合系数表与温度区间行被解析器显式剔除——报数宁缺毋滥。</div>
 
 <!-- ============ P7 工作流 ============ -->
 <div class="pagebreak"></div>
@@ -538,13 +552,13 @@ PTMG-2000      Polytetramethylene glycol (PTMEG-2000) · CAS 25268-40-0 · 2000 
 </table>
 
 <h3>复现指引（全部输出可逐步复核）</h3>
-<pre><span class="c"># 环境：Windows · Python 3.11.15 (项目 .venv) · 仓库 CL4Y68/chemfacts @ 2b28008（v0.5.0）</span>
+<pre><span class="c"># 环境：Windows · Python 3.11.15 (项目 .venv) · 仓库 CL4Y68/chemfacts v0.5.1（§0 快照证据 commit 2b28008）</span>
 <span class="c"># 安装：pip install chemfacts（主渠道 PyPI；开发版 git clone https://github.com/CL4Y68/chemfacts && pip install .，或一行 pip install git+https://github.com/CL4Y68/chemfacts；开发态 uv run chemfacts）</span>
 <span class="c"># 检索库：~/.cache/chemfacts/facts.db + aliases.json + zhnames.json（手册证据快照：14 / 224 / 1227 / 13 条 / 1 条，2026-10-21）</span>
 <span class="c"># 逐条复现：按 §1-§2 各命令重跑，TTL 内输出与手册逐字一致（仅日期行允许刷新）；</span>
 <span class="c"># export 联网优先：即使本地库清空，总表仍可现拉 PubChem 生成（--fresh 强制现拉）。</span>
 <span class="c"># 判定与退出码口径见 §1 三张表与 §4 边界表。线上阅读：https://cl4y68.github.io/chemfacts/docs/USAGE_manual.html（GitHub Pages）</span></pre>
-<footer>本手册：chemfacts v0.5.0 使用手册 · 面向使用者 · 全部功能输出为同一缓存快照（2026-10-21）的真实运行结果，可按第 4 节路径逐步复现 · computed 值、CONFLICT 状态、中文名列 fail-closed 与手工条目标记的含义边界已在 §4 逐项声明</footer>
+<footer>本手册：chemfacts v0.5.1 使用手册 · 面向使用者 · §1–§11 输出为同一缓存快照（2026-10-21）的真实运行结果，功能十二（NIST WebBook 第二来源）为 2026-10-22 在线运行结果，均可按第 4 节路径逐步复现 · computed 值、CONFLICT 状态、中文名列 fail-closed 与手工条目标记的含义边界已在 §4 逐项声明</footer>
 
 </body>
 </html>

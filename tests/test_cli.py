@@ -6,7 +6,7 @@ import pytest
 from typer.testing import CliRunner
 
 from chemfacts import cli
-from tests.test_core import FakePubChem
+from tests.test_core import FakeNist, FakePubChem
 
 runner = CliRunner()
 
@@ -19,7 +19,9 @@ def fake_cli(monkeypatch, tmp_path):
     monkeypatch.setenv("CHEMFACTS_ALIASES", str(tmp_path / "aliases.json"))
 
     def _facts_stub():
-        return ChemFacts(client=FakePubChem(), cache=FactCache(str(tmp_path / "c.db")))
+        return ChemFacts(
+            client=FakePubChem(), cache=FactCache(str(tmp_path / "c.db")), nist=FakeNist()
+        )
 
     monkeypatch.setattr(cli, "_facts", _facts_stub)
 
